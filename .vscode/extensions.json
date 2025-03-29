@@ -3,6 +3,7 @@
     "davidanson.vscode-markdownlint",
     "bierner.emojisense",
     "mike-lischke.vscode-antlr4",
-    "jkillian.custom-local-formatters"
+    "jkillian.custom-local-formatters",
+    "ms-dotnettools.csharp"
   ]
 }
