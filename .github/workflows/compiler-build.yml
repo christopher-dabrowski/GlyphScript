@@ -1,4 +1,4 @@
-name: Build C# Project
+name: Compiler Build
 
 on:
   push:
