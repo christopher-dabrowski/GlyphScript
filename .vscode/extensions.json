@@ -2,6 +2,7 @@
   "recommendations": [
     "davidanson.vscode-markdownlint",
     "bierner.emojisense",
-    "mike-lischke.vscode-antlr4"
+    "mike-lischke.vscode-antlr4",
+    "jkillian.custom-local-formatters"
   ]
 }

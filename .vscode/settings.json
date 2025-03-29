@@ -1,0 +1,11 @@
+{
+  "customLocalFormatters.formatters": [
+    {
+      "command": "npx antlr-format --config antlr-format-config.json",
+      "languages": ["antlr"]
+    }
+  ],
+  "[antlr]": {
+    "editor.defaultFormatter": "mike-lischke.vscode-antlr4"
+  }
+}
