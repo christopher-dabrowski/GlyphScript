@@ -4,7 +4,7 @@
 grammar GlyphScript;
 
 program
-    : (statement? NEWLINE)*
+    : (statement? NEWLINE)* EOF
     ;
 
 statement
