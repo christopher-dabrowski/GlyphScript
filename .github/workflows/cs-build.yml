@@ -1,0 +1,31 @@
+name: Build C# Project
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore GlyphScriptCompiler/GlyphScriptCompiler.csproj
+
+      - name: Build the project
+        run: >
+          dotnet build GlyphScriptCompiler/GlyphScriptCompiler.csproj
+          --configuration Release
+          --no-restore
