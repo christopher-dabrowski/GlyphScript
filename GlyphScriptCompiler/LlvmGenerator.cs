@@ -8,77 +8,63 @@ public class LlvmGenerator
 {
     public void GenerateSampleProgram()
     {
-        // Initialize LLVM
-        // LLVM.LinkInMCJIT();
-        // LLVM.InitializeX86TargetMC();
-        // LLVM.InitializeX86Target();
-        // LLVM.InitializeX86TargetInfo();
-        // LLVM.InitializeX86AsmParser();
-        // LLVM.InitializeX86AsmPrinter();
-
-        // Create module and context
-        LLVMContextRef context = LLVM.ContextCreate();
-        LLVMModuleRef module = LLVM.ModuleCreateWithNameInContext("main_module", context);
+        var module = LLVM.ModuleCreateWithName("main_module");
 
         // Create format strings as global constants
-        LLVMTypeRef i8Type = LLVM.Int8TypeInContext(context);
-        LLVMTypeRef i8PtrType = LLVM.PointerType(i8Type, 0);
+        var i8Type = LLVM.Int8Type();
+        var i8PtrType = LLVM.PointerType(i8Type, 0);
 
-        // Create "%d\n\0" string constant
-        LLVMValueRef printfFormatStr = CreateStringConstant(context, module, "strp", "%d\n\0");
+        var printfFormatStr = CreateStringConstant(module, "strp", "%d\n\0");
 
-        // Create "%d\0" string constant
-        LLVMValueRef scanfFormatStr = CreateStringConstant(context, module, "strs", "%d\0");
+        var scanfFormatStr = CreateStringConstant(module, "strs", "%d\0");
 
         // Declare external functions (printf and scanf)
-        LLVMTypeRef[] printfParamTypes = new LLVMTypeRef[] { i8PtrType };
-        LLVMTypeRef printfType = LLVM.FunctionType(LLVM.Int32TypeInContext(context),
+        var printfParamTypes = new LLVMTypeRef[] { i8PtrType };
+        var printfType = LLVM.FunctionType(LLVM.Int32Type(),
             printfParamTypes, true);
-        LLVMValueRef printfFunc = LLVM.AddFunction(module, "printf", printfType);
+        var printfFunc = LLVM.AddFunction(module, "printf", printfType);
 
-        LLVMTypeRef scanfType = LLVM.FunctionType(LLVM.Int32TypeInContext(context),
+        var scanfType = LLVM.FunctionType(LLVM.Int32Type(),
             printfParamTypes, true);
-        LLVMValueRef scanfFunc = LLVM.AddFunction(module, "scanf", scanfType);
-        //
+        var scanfFunc = LLVM.AddFunction(module, "scanf", scanfType);
+
         // Create main function
-        LLVMTypeRef mainRetType = LLVM.Int32TypeInContext(context);
-        LLVMTypeRef mainFuncType = LLVM.FunctionType(mainRetType, Array.Empty<LLVMTypeRef>(), false);
-        LLVMValueRef mainFunc = LLVM.AddFunction(module, "main", mainFuncType);
+        var mainRetType = LLVM.Int32Type();
+        var mainFuncType = LLVM.FunctionType(mainRetType, Array.Empty<LLVMTypeRef>(), false);
+        var mainFunc = LLVM.AddFunction(module, "main", mainFuncType);
         LLVM.SetFunctionCallConv(mainFunc, (uint)LLVMCallConv.LLVMCCallConv);
         LLVM.AddAttributeAtIndex(mainFunc, LLVMAttributeIndex.LLVMAttributeFunctionIndex,
-            CreateAttribute(context, "nounwind"));
+            CreateAttribute("nounwind"));
 
         // Create main function body
-        LLVMBasicBlockRef entryBlock = LLVM.AppendBasicBlock(mainFunc, "entry");
-        LLVMBuilderRef builder = LLVM.CreateBuilder();
+        var entryBlock = LLVM.AppendBasicBlock(mainFunc, "entry");
+        var builder = LLVM.CreateBuilder();
         LLVM.PositionBuilderAtEnd(builder, entryBlock);
 
 
-        // Allocate x variable on the stack
-        LLVMValueRef x = LLVM.BuildAlloca(builder, LLVM.Int32TypeInContext(context), "x");
+        var x = LLVM.BuildAlloca(builder, LLVM.Int32Type(), "x");
 
-        // Store initial value 42 to x
-        LLVM.BuildStore(builder, LLVM.ConstInt(LLVM.Int32TypeInContext(context), 42, false), x);
+        LLVM.BuildStore(builder, LLVM.ConstInt(LLVM.Int32Type(), 42, false), x);
 
         // Load value of x for printf
-        LLVMValueRef loadedX = LLVM.BuildLoad(builder, x, "");
+        var loadedX = LLVM.BuildLoad(builder, x, string.Empty);
 
         // Get pointer to the printf format string
-        LLVMValueRef printfFormatPtr = GetStringPtr(builder, printfFormatStr);
+        var printfFormatPtr = GetStringPtr(builder, printfFormatStr);
 
         // Call printf with the loaded value
-        LLVMValueRef[] printfArgs = new LLVMValueRef[] { printfFormatPtr, loadedX };
-        LLVM.BuildCall(builder, printfFunc, printfArgs, "");
+        LLVMValueRef[] printfArgs = [printfFormatPtr, loadedX];
+        LLVM.BuildCall(builder, printfFunc, printfArgs, string.Empty);
 
         // Get pointer to the scanf format string
-        LLVMValueRef scanfFormatPtr = GetStringPtr(builder, scanfFormatStr);
+        var scanfFormatPtr = GetStringPtr(builder, scanfFormatStr);
 
         // Call scanf, storing result into x
-        LLVMValueRef[] scanfArgs = new LLVMValueRef[] { scanfFormatPtr, x };
-        LLVM.BuildCall(builder, scanfFunc, scanfArgs, "");
+        var scanfArgs = new LLVMValueRef[] { scanfFormatPtr, x };
+        LLVM.BuildCall(builder, scanfFunc, scanfArgs, string.Empty);
 
         // Return 0
-        LLVM.BuildRet(builder, LLVM.ConstInt(LLVM.Int32TypeInContext(context), 0, false));
+        LLVM.BuildRet(builder, LLVM.ConstInt(LLVM.Int32Type(), 0, false));
 
         // Print the generated IR
         // var codePtr = LLVM.PrintModuleToString(module);
@@ -91,22 +77,21 @@ public class LlvmGenerator
     }
 
     private static LLVMValueRef CreateStringConstant(
-        LLVMContextRef context,
         LLVMModuleRef module,
         string name,
         string value)
     {
-        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(value);
-        uint length = (uint)bytes.Length;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        var length = (uint)bytes.Length;
 
-        LLVMTypeRef i8Type = LLVM.Int8TypeInContext(context);
-        LLVMTypeRef arrayType = LLVM.ArrayType(i8Type, length);
+        var i8Type = LLVM.Int8Type();
+        var arrayType = LLVM.ArrayType(i8Type, length);
 
-        LLVMValueRef global = LLVM.AddGlobal(module, arrayType, name);
+        var global = LLVM.AddGlobal(module, arrayType, name);
         LLVM.SetLinkage(global, LLVMLinkage.LLVMExternalLinkage);
         LLVM.SetGlobalConstant(global, true);
 
-        var stringConstant = LLVM.ConstStringInContext(context, value, (uint)value.Length, true);
+        var stringConstant = LLVM.ConstString(value, (uint)value.Length, true);
         LLVM.SetInitializer(global, stringConstant);
 
         return global;
@@ -114,18 +99,19 @@ public class LlvmGenerator
 
     private static LLVMValueRef GetStringPtr(LLVMBuilderRef builder, LLVMValueRef stringGlobal)
     {
-        LLVMValueRef[] indices = new LLVMValueRef[]
-        {
+        LLVMValueRef[] indices =
+        [
             LLVM.ConstInt(LLVM.Int32Type(), 0, false),
             LLVM.ConstInt(LLVM.Int32Type(), 0, false)
-        };
+        ];
 
-        return LLVM.BuildGEP(builder, stringGlobal, indices, "");
+        return LLVM.BuildGEP(builder, stringGlobal, indices, string.Empty);
     }
 
-    private static LLVMAttributeRef CreateAttribute(LLVMContextRef context, string name)
+    private static LLVMAttributeRef CreateAttribute(string name)
     {
-        return LLVM.CreateEnumAttribute(context,
+        return LLVM.CreateEnumAttribute(
+            LLVM.GetGlobalContext(),
             LLVM.GetEnumAttributeKindForName(name, name.Length), 0);
     }
 }
