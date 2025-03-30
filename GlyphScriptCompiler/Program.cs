@@ -1,5 +1,13 @@
 ﻿using Antlr4.Runtime;
 using GlyphScriptCompiler;
+using LLVMSharp;
+
+var llvmGenerator = new LlvmGenerator();
+llvmGenerator.GenerateSampleProgram();
+
+Console.WriteLine("The end");
+
+return 0;
 
 var codeFilePath = args.FirstOrDefault();
 var codeFile = OpenCodeFile(codeFilePath);
@@ -14,6 +22,7 @@ var parser = new GlyphScriptParser(tokenStream);
 var context = parser.program();
 var visitor = new LlvmVisitor();
 visitor.Visit(context);
+
 
 return 0;
 

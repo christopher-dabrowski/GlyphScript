@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
-    <PackageReference Include="LLVMSharp.Interop" Version="16.0.0" />
+    <PackageReference Include="LLVMSharp" Version="5.0.0" />
   </ItemGroup>
 
 </Project>
