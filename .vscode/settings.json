@@ -1,7 +1,7 @@
 {
   "customLocalFormatters.formatters": [
     {
-      "command": "npx antlr-format --config antlr-format-config.json",
+      "command": "npx antlr-format",
       "languages": ["antlr"]
     }
   ],
