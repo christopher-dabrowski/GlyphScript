@@ -18,3 +18,6 @@ generateCompiler:
 		-o $(COMPILER_DIR) \
 		-Werror \
 		$(GRAMMAR_FILE)
+
+test:
+	dotnet test ./GlyphScriptCompiler.IntegrationTests
