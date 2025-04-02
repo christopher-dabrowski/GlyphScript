@@ -7,5 +7,6 @@
   ],
   "[antlr]": {
     "editor.defaultFormatter": "mike-lischke.vscode-antlr4"
-  }
+  },
+  "makefile.configureOnOpen": false
 }
