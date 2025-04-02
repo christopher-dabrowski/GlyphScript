@@ -2,10 +2,12 @@ using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 
-public class LlvmVisitor : GlyphScriptBaseVisitor<object>, IDisposable
+public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
+
+    private readonly Dictionary<string, LLVMValueRef> _variables = [];
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
     {
@@ -13,7 +15,7 @@ public class LlvmVisitor : GlyphScriptBaseVisitor<object>, IDisposable
     }
 
 
-    public override object VisitProgram(GlyphScriptParser.ProgramContext context)
+    public override object? VisitProgram(GlyphScriptParser.ProgramContext context)
     {
         SetupGlobalFunctions(LlvmModule);
         CreateMain(LlvmModule, _llvmBuilder);
@@ -22,6 +24,25 @@ public class LlvmVisitor : GlyphScriptBaseVisitor<object>, IDisposable
         LLVM.BuildRet(_llvmBuilder, LLVM.ConstInt(LLVM.Int32Type(), 0, false));
 
         return result;
+    }
+
+    public override object? VisitAssign(GlyphScriptParser.AssignContext context)
+    {
+        // TODO: Interpret expression when they are added
+        var id = context.IDENTIFIER().GetText();
+        // TODO: Validate type
+        var value = int.Parse(context.INT().GetText());
+        var llvmValue = LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false);
+
+        if (!_variables.ContainsKey(id))
+        {
+            _variables[id] = LLVM.BuildAlloca(_llvmBuilder, LLVM.Int32Type(), id);
+        }
+
+        var variable = _variables[id];
+        LLVM.BuildStore(_llvmBuilder, llvmValue, variable);
+
+        return null;
     }
 
     public void Dispose()
