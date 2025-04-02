@@ -1,3 +1,6 @@
+# Generated LLVM code
+*.ll
+
 # ANTLR
 .antlr/
 
