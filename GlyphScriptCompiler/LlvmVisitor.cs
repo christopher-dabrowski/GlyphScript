@@ -45,6 +45,46 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return null;
     }
 
+    public override object? VisitWrite(GlyphScriptParser.WriteContext context)
+    {
+        var id = context.IDENTIFIER().GetText();
+
+        if (!_variables.TryGetValue(id, out var variable))
+        {
+            // TODO: Generate more specific error messages on syntax errors
+            throw new InvalidOperationException($"Variable '{id}' is not defined.");
+        }
+
+        var printfFormatStr = LLVM.GetNamedGlobal(LlvmModule, "strp");
+        var printfFunc = LLVM.GetNamedFunction(LlvmModule, "printf");
+
+        var value = LLVM.BuildLoad(_llvmBuilder, variable, string.Empty);
+        var args = new[] { GetStringPtr(_llvmBuilder, printfFormatStr), value };
+
+        LLVM.BuildCall(_llvmBuilder, printfFunc, args, string.Empty);
+
+        return null;
+    }
+
+    public override object? VisitRead(GlyphScriptParser.ReadContext context)
+    {
+        var id = context.IDENTIFIER().GetText();
+
+        if (!_variables.TryGetValue(id, out var variable))
+        {
+            _variables[id] = LLVM.BuildAlloca(_llvmBuilder, LLVM.Int32Type(), id);
+            variable = _variables[id];
+        }
+
+        var scanfFormatStr = LLVM.GetNamedGlobal(LlvmModule, "strs");
+        var scanfFunc = LLVM.GetNamedFunction(LlvmModule, "scanf");
+
+        var args = new[] { GetStringPtr(_llvmBuilder, scanfFormatStr), variable };
+        LLVM.BuildCall(_llvmBuilder, scanfFunc, args, string.Empty);
+
+        return null;
+    }
+
     public void Dispose()
     {
         LLVM.DisposeBuilder(_llvmBuilder);
