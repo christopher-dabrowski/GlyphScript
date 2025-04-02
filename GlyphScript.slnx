@@ -4,5 +4,6 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Project Path="GlyphScriptCompiler.IntegrationTests/GlyphScriptCompiler.IntegrationTests.csproj" />
   <Project Path="GlyphScriptCompiler/GlyphScriptCompiler.csproj" />
 </Solution>
