@@ -14,6 +14,13 @@ var codeFile = OpenCodeFile(codeFilePath);
 if (codeFile == null)
     return 1;
 
+var outputFilePath = args.ElementAtOrDefault(1);
+if (outputFilePath == null)
+{
+    Console.WriteLine("No output file specified");
+    return 1;
+}
+
 var inputStream = new AntlrInputStream(codeFile);
 var lexer = new GlyphScriptLexer(inputStream);
 var tokenStream = new CommonTokenStream(lexer);
@@ -27,23 +34,26 @@ var llvmModule = LLVM.ModuleCreateWithName(moduleName);
 var visitor = new LlvmVisitor(llvmModule);
 visitor.Visit(context);
 
-// TODO: Write module to a file
-LLVM.DumpModule(llvmModule);
+LLVM.PrintModuleToFile(llvmModule, outputFilePath, out var errorMessage);
+if (!string.IsNullOrEmpty(errorMessage))
+{
+    Console.Error.WriteLine(errorMessage);
+}
 
 return 0;
 
-Stream? OpenCodeFile(string? codeFilePath)
+Stream? OpenCodeFile(string? filePath)
 {
-    if (codeFilePath is null)
+    if (filePath is null)
     {
         Console.Error.WriteLine("No code file specified. Pass a file name to run.");
         return null;
     }
-    if (!File.Exists(codeFilePath))
+    if (!File.Exists(filePath))
     {
-        Console.Error.WriteLine($"File {codeFilePath} does not exist.");
+        Console.Error.WriteLine($"File {filePath} does not exist.");
         return null;
     }
 
-    return File.OpenRead(codeFilePath);
+    return File.OpenRead(filePath);
 }
