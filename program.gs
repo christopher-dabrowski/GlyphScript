@@ -1,4 +1,4 @@
 x = 5
-write x
-read x
-write x
+📢 x
+⌨️ x
+📢 x

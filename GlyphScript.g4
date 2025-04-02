@@ -14,11 +14,13 @@ statement
     ;
 
 WRITE
-    : 'write'
+    : '📢'
+    | ':loudspeaker:'
     ;
 
 READ
-    : 'read'
+    : '⌨️'
+    | ':keyboard:'
     ;
 
 STRING

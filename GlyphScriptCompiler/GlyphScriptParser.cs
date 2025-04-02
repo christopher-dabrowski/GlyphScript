@@ -45,7 +45,7 @@ public partial class GlyphScriptParser : Parser {
 	};
 
 	private static readonly string[] _LiteralNames = {
-		null, "'='", "'write'", "'read'"
+		null, "'='"
 	};
 	private static readonly string[] _SymbolicNames = {
 		null, null, "WRITE", "READ", "STRING", "ID", "DECIMAL", "INT", "NEWLINE", 

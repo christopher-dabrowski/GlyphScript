@@ -21,8 +21,8 @@ if (outputFilePath == null)
     return 1;
 }
 
-var inputStream = new AntlrInputStream(codeFile);
-var lexer = new GlyphScriptLexer(inputStream);
+// var inputStream = new AntlrInputStream(codeFile);
+var lexer = new GlyphScriptLexer(codeFile);
 var tokenStream = new CommonTokenStream(lexer);
 var parser = new GlyphScriptParser(tokenStream);
 
@@ -42,7 +42,7 @@ if (!string.IsNullOrEmpty(errorMessage))
 
 return 0;
 
-Stream? OpenCodeFile(string? filePath)
+ICharStream? OpenCodeFile(string? filePath)
 {
     if (filePath is null)
     {
@@ -55,5 +55,5 @@ Stream? OpenCodeFile(string? filePath)
         return null;
     }
 
-    return File.OpenRead(filePath);
+    return CharStreams.fromPath(filePath);
 }
