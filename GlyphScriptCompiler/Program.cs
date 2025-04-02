@@ -2,12 +2,12 @@
 using GlyphScriptCompiler;
 using LLVMSharp;
 
-var llvmGenerator = new LlvmGenerator();
-llvmGenerator.GenerateSampleProgram();
+// var llvmGenerator = new LlvmGenerator();
+// llvmGenerator.GenerateSampleProgram();
 
-Console.WriteLine("The end");
+// Console.WriteLine("The end");
 
-return 0;
+// return 0;
 
 var codeFilePath = args.FirstOrDefault();
 var codeFile = OpenCodeFile(codeFilePath);
@@ -20,9 +20,15 @@ var tokenStream = new CommonTokenStream(lexer);
 var parser = new GlyphScriptParser(tokenStream);
 
 var context = parser.program();
-var visitor = new LlvmVisitor();
+
+var moduleName = Path.GetFileNameWithoutExtension(codeFilePath);
+var llvmModule = LLVM.ModuleCreateWithName(moduleName);
+
+var visitor = new LlvmVisitor(llvmModule);
 visitor.Visit(context);
 
+// TODO: Write module to a file
+LLVM.DumpModule(llvmModule);
 
 return 0;
 
