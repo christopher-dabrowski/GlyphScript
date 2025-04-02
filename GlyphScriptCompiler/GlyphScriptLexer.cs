@@ -33,7 +33,7 @@ public partial class GlyphScriptLexer : Lexer {
 	protected static DFA[] decisionToDFA;
 	protected static PredictionContextCache sharedContextCache = new PredictionContextCache();
 	public const int
-		T__0=1, WRITE=2, READ=3, STRING=4, IDENTIFIER=5, DECIMAL=6, INT=7, NEWLINE=8, 
+		T__0=1, WRITE=2, READ=3, STRING=4, ID=5, DECIMAL=6, INT=7, NEWLINE=8, 
 		WHITE_SPACE=9, COMMENT=10;
 	public static string[] channelNames = {
 		"DEFAULT_TOKEN_CHANNEL", "HIDDEN"
@@ -44,7 +44,7 @@ public partial class GlyphScriptLexer : Lexer {
 	};
 
 	public static readonly string[] ruleNames = {
-		"T__0", "WRITE", "READ", "STRING", "IDENTIFIER", "DECIMAL", "INT", "NEWLINE", 
+		"T__0", "WRITE", "READ", "STRING", "ID", "DECIMAL", "INT", "NEWLINE", 
 		"WHITE_SPACE", "COMMENT", "STRING_CHAR"
 	};
 
@@ -62,8 +62,8 @@ public partial class GlyphScriptLexer : Lexer {
 		null, "'='", "'write'", "'read'"
 	};
 	private static readonly string[] _SymbolicNames = {
-		null, null, "WRITE", "READ", "STRING", "IDENTIFIER", "DECIMAL", "INT", 
-		"NEWLINE", "WHITE_SPACE", "COMMENT"
+		null, null, "WRITE", "READ", "STRING", "ID", "DECIMAL", "INT", "NEWLINE", 
+		"WHITE_SPACE", "COMMENT"
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 

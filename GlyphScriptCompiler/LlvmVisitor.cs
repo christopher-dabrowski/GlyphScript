@@ -29,7 +29,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public override object? VisitAssign(GlyphScriptParser.AssignContext context)
     {
         // TODO: Interpret expression when they are added
-        var id = context.IDENTIFIER().GetText();
+        var id = context.ID().GetText();
         // TODO: Validate type
         var value = int.Parse(context.INT().GetText());
         var llvmValue = LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false);
@@ -47,7 +47,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitWrite(GlyphScriptParser.WriteContext context)
     {
-        var id = context.IDENTIFIER().GetText();
+        var id = context.ID().GetText();
 
         if (!_variables.TryGetValue(id, out var variable))
         {
@@ -68,7 +68,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitRead(GlyphScriptParser.ReadContext context)
     {
-        var id = context.IDENTIFIER().GetText();
+        var id = context.ID().GetText();
 
         if (!_variables.TryGetValue(id, out var variable))
         {

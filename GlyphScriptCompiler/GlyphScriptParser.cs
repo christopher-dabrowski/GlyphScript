@@ -36,7 +36,7 @@ public partial class GlyphScriptParser : Parser {
 	protected static DFA[] decisionToDFA;
 	protected static PredictionContextCache sharedContextCache = new PredictionContextCache();
 	public const int
-		T__0=1, WRITE=2, READ=3, STRING=4, IDENTIFIER=5, DECIMAL=6, INT=7, NEWLINE=8, 
+		T__0=1, WRITE=2, READ=3, STRING=4, ID=5, DECIMAL=6, INT=7, NEWLINE=8, 
 		WHITE_SPACE=9, COMMENT=10;
 	public const int
 		RULE_program = 0, RULE_statement = 1;
@@ -48,8 +48,8 @@ public partial class GlyphScriptParser : Parser {
 		null, "'='", "'write'", "'read'"
 	};
 	private static readonly string[] _SymbolicNames = {
-		null, null, "WRITE", "READ", "STRING", "IDENTIFIER", "DECIMAL", "INT", 
-		"NEWLINE", "WHITE_SPACE", "COMMENT"
+		null, null, "WRITE", "READ", "STRING", "ID", "DECIMAL", "INT", "NEWLINE", 
+		"WHITE_SPACE", "COMMENT"
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 
@@ -169,7 +169,7 @@ public partial class GlyphScriptParser : Parser {
 	}
 	public partial class ReadContext : StatementContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode READ() { return GetToken(GlyphScriptParser.READ, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER() { return GetToken(GlyphScriptParser.IDENTIFIER, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ID() { return GetToken(GlyphScriptParser.ID, 0); }
 		public ReadContext(StatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
@@ -180,7 +180,7 @@ public partial class GlyphScriptParser : Parser {
 	}
 	public partial class WriteContext : StatementContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode WRITE() { return GetToken(GlyphScriptParser.WRITE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER() { return GetToken(GlyphScriptParser.IDENTIFIER, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ID() { return GetToken(GlyphScriptParser.ID, 0); }
 		public WriteContext(StatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
@@ -190,7 +190,7 @@ public partial class GlyphScriptParser : Parser {
 		}
 	}
 	public partial class AssignContext : StatementContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode IDENTIFIER() { return GetToken(GlyphScriptParser.IDENTIFIER, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ID() { return GetToken(GlyphScriptParser.ID, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode INT() { return GetToken(GlyphScriptParser.INT, 0); }
 		public AssignContext(StatementContext context) { CopyFrom(context); }
 		[System.Diagnostics.DebuggerNonUserCode]
@@ -216,15 +216,15 @@ public partial class GlyphScriptParser : Parser {
 				State = 15;
 				Match(WRITE);
 				State = 16;
-				Match(IDENTIFIER);
+				Match(ID);
 				}
 				break;
-			case IDENTIFIER:
+			case ID:
 				_localctx = new AssignContext(_localctx);
 				EnterOuterAlt(_localctx, 2);
 				{
 				State = 17;
-				Match(IDENTIFIER);
+				Match(ID);
 				State = 18;
 				Match(T__0);
 				State = 19;
@@ -238,7 +238,7 @@ public partial class GlyphScriptParser : Parser {
 				State = 20;
 				Match(READ);
 				State = 21;
-				Match(IDENTIFIER);
+				Match(ID);
 				}
 				break;
 			default:

@@ -8,9 +8,9 @@ program
     ;
 
 statement
-    : WRITE IDENTIFIER   # write
-    | IDENTIFIER '=' INT # assign
-    | READ IDENTIFIER    # read
+    : WRITE ID   # write
+    | ID '=' INT # assign
+    | READ ID    # read
     ;
 
 WRITE
@@ -25,7 +25,7 @@ STRING
     : '"' STRING_CHAR* '"'
     ;
 
-IDENTIFIER
+ID
     : [a-zA-Z_] [a-zA-Z_0-9]*
     ;
 
