@@ -1,12 +1,12 @@
 {
   "customLocalFormatters.formatters": [
     {
-      "command": "npx antlr-format",
+      "command": "tempFile=$(mktemp) && cat > $tempFile && npx antlr-format --config antlrConfig.json $tempFile > /dev/null 2>&1 && cat $tempFile && rm $tempFile",
       "languages": ["antlr"]
     }
   ],
   "[antlr]": {
-    "editor.defaultFormatter": "mike-lischke.vscode-antlr4"
+    "editor.defaultFormatter": "jkillian.custom-local-formatters"
   },
   "makefile.configureOnOpen": false,
   "[makefile]": {
