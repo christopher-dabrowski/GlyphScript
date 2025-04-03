@@ -8,8 +8,8 @@ NAMESPACE = GlyphScriptCompiler.Antlr
 compile:
 	dotnet run \
 		--project ./GlyphScriptCompiler \
-		$(SOURCE_FILE) \
-		$(OUTPUT_FILE)
+		--input $(SOURCE_FILE) \
+		--output $(OUTPUT_FILE)
 
 generateCompiler:
 	antlr \
