@@ -3,18 +3,25 @@ using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 
+public enum TypeKind
+{
+    Int,
+    Long,
+    Float,
+    Double
+}
+
 public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
 
-    private readonly Dictionary<string, LLVMValueRef> _variables = [];
+    private readonly Dictionary<string, (LLVMValueRef Value, TypeKind Type)> _variables = [];
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
     {
         LlvmModule = llvmModule;
     }
-
 
     public override object? VisitProgram(GlyphScriptParser.ProgramContext context)
     {
@@ -27,43 +34,85 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return result;
     }
 
-    public override object? VisitAssign(GlyphScriptParser.AssignContext context)
+    public override object? VisitDeclaration(GlyphScriptParser.DeclarationContext context)
     {
-        // TODO: Interpret expression when they are added
+        var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
-        // TODO: Validate type
-        var value = int.Parse(context.INT().GetText());
-        var llvmValue = LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false);
+        var value = (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
+            throw new InvalidOperationException("Failed to create immediate value"));
 
-        if (!_variables.ContainsKey(id))
+        if (_variables.ContainsKey(id))
         {
-            _variables[id] = LLVM.BuildAlloca(_llvmBuilder, LLVM.Int32Type(), id);
+            throw new InvalidOperationException($"Variable '{id}' is already defined.");
         }
 
-        var variable = _variables[id];
-        LLVM.BuildStore(_llvmBuilder, llvmValue, variable);
+        var llvmType = GetLlvmType(type);
+        var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
 
+        // Ensure the value type matches the variable type
+        if (LLVM.GetTypeKind(LLVM.TypeOf(value)) != LLVM.GetTypeKind(llvmType))
+        {
+            throw new InvalidOperationException($"Type mismatch in declaration of variable '{id}'");
+        }
+
+        LLVM.BuildStore(_llvmBuilder, value, variable);
+
+        _variables[id] = (variable, type);
         return null;
     }
 
-    public override object? VisitWrite(GlyphScriptParser.WriteContext context)
+    public override object? VisitAssignment(GlyphScriptParser.AssignmentContext context)
+    {
+        var id = context.ID().GetText();
+        var value = (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
+            throw new InvalidOperationException("Failed to create immediate value"));
+
+        if (!_variables.TryGetValue(id, out var variable))
+        {
+            throw new InvalidOperationException($"Variable '{id}' is not defined.");
+        }
+
+        var valueType = GetTypeFromImmediateValue(context.immediateValue());
+        if (valueType != variable.Type)
+        {
+            throw new InvalidOperationException(
+                $"Type mismatch: Cannot assign {valueType} value to variable of type {variable.Type}");
+        }
+
+        // Ensure the value type matches the variable type
+        var llvmType = GetLlvmType(variable.Type);
+        if (LLVM.GetTypeKind(LLVM.TypeOf(value)) != LLVM.GetTypeKind(llvmType))
+        {
+            throw new InvalidOperationException($"Type mismatch in assignment to variable '{id}'");
+        }
+
+        LLVM.BuildStore(_llvmBuilder, value, variable.Value);
+        return null;
+    }
+
+    public override object? VisitPrint(GlyphScriptParser.PrintContext context)
     {
         var id = context.ID().GetText();
 
         if (!_variables.TryGetValue(id, out var variable))
         {
-            // TODO: Generate more specific error messages on syntax errors
             throw new InvalidOperationException($"Variable '{id}' is not defined.");
         }
 
-        var printfFormatStr = LLVM.GetNamedGlobal(LlvmModule, "strp");
+        var printfFormatStr = GetPrintfFormatString(variable.Type);
         var printfFunc = LLVM.GetNamedFunction(LlvmModule, "printf");
 
-        var value = LLVM.BuildLoad(_llvmBuilder, variable, string.Empty);
+        var value = LLVM.BuildLoad(_llvmBuilder, variable.Value, string.Empty);
+
+        // Convert float to double if needed
+        if (variable.Type == TypeKind.Float)
+        {
+            value = LLVM.BuildFPExt(_llvmBuilder, value, LLVM.DoubleType(), string.Empty);
+        }
+
         var args = new[] { GetStringPtr(_llvmBuilder, printfFormatStr), value };
 
         LLVM.BuildCall(_llvmBuilder, printfFunc, args, string.Empty);
-
         return null;
     }
 
@@ -73,22 +122,119 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         if (!_variables.TryGetValue(id, out var variable))
         {
-            _variables[id] = LLVM.BuildAlloca(_llvmBuilder, LLVM.Int32Type(), id);
-            variable = _variables[id];
+            throw new InvalidOperationException($"Variable '{id}' is not defined.");
         }
 
-        var scanfFormatStr = LLVM.GetNamedGlobal(LlvmModule, "strs");
+        var scanfFormatStr = GetScanfFormatString(variable.Type);
         var scanfFunc = LLVM.GetNamedFunction(LlvmModule, "scanf");
 
-        var args = new[] { GetStringPtr(_llvmBuilder, scanfFormatStr), variable };
+        var args = new[] { GetStringPtr(_llvmBuilder, scanfFormatStr), variable.Value };
         LLVM.BuildCall(_llvmBuilder, scanfFunc, args, string.Empty);
-
         return null;
     }
 
-    public void Dispose()
+    public override object? VisitImmediateValue(GlyphScriptParser.ImmediateValueContext context)
     {
-        LLVM.DisposeBuilder(_llvmBuilder);
+        if (context.INT_LITERAL() != null)
+        {
+            var value = int.Parse(context.INT_LITERAL().GetText());
+            return LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false);
+        }
+        if (context.LONG_LITERAL() != null)
+        {
+            var value = long.Parse(context.LONG_LITERAL().GetText().TrimEnd('l', 'L'));
+            return LLVM.ConstInt(LLVM.Int64Type(), (ulong)value, false);
+        }
+        if (context.FLOAT_LITERAL() != null)
+        {
+            var value = float.Parse(context.FLOAT_LITERAL().GetText().TrimEnd('f', 'F'));
+            return LLVM.ConstReal(LLVM.FloatType(), value);
+        }
+        if (context.DOUBLE_LITERAL() != null)
+        {
+            var value = double.Parse(context.DOUBLE_LITERAL().GetText().TrimEnd('d', 'D'));
+            return LLVM.ConstReal(LLVM.DoubleType(), value);
+        }
+        throw new InvalidOperationException("Invalid immediate value");
+    }
+
+    private static TypeKind GetTypeFromImmediateValue(GlyphScriptParser.ImmediateValueContext context)
+    {
+        if (context.INT_LITERAL() != null) return TypeKind.Int;
+        if (context.LONG_LITERAL() != null) return TypeKind.Long;
+        if (context.FLOAT_LITERAL() != null) return TypeKind.Float;
+        if (context.DOUBLE_LITERAL() != null) return TypeKind.Double;
+        throw new InvalidOperationException("Invalid immediate value");
+    }
+
+    private static TypeKind GetTypeFromContext(GlyphScriptParser.TypeContext context)
+    {
+        if (context.INT() != null) return TypeKind.Int;
+        if (context.LONG() != null) return TypeKind.Long;
+        if (context.FLOAT() != null) return TypeKind.Float;
+        if (context.DOUBLE() != null) return TypeKind.Double;
+        throw new InvalidOperationException("Invalid type");
+    }
+
+    private static LLVMTypeRef GetLlvmType(TypeKind type)
+    {
+        return type switch
+        {
+            TypeKind.Int => LLVM.Int32Type(),
+            TypeKind.Long => LLVM.Int64Type(),
+            TypeKind.Float => LLVM.FloatType(),
+            TypeKind.Double => LLVM.DoubleType(),
+            _ => throw new InvalidOperationException($"Unsupported type: {type}")
+        };
+    }
+
+    private void SetupGlobalFunctions(LLVMModuleRef module)
+    {
+        var i8Type = LLVM.Int8Type();
+        var i8PtrType = LLVM.PointerType(i8Type, 0);
+
+        // Format strings for different types
+        CreateStringConstant(module, "strp_int", "%d\n\0");
+        CreateStringConstant(module, "strp_long", "%ld\n\0");
+        CreateStringConstant(module, "strp_float", "%f\n\0");
+        CreateStringConstant(module, "strp_double", "%lf\n\0");
+
+        CreateStringConstant(module, "strs_int", "%d\0");
+        CreateStringConstant(module, "strs_long", "%ld\0");
+        CreateStringConstant(module, "strs_float", "%f\0");
+        CreateStringConstant(module, "strs_double", "%lf\0");
+
+        // Declare external functions (printf and scanf)
+        LLVMTypeRef[] printfParamTypes = [i8PtrType];
+        var printfType = LLVM.FunctionType(LLVM.Int32Type(), printfParamTypes, true);
+        LLVM.AddFunction(module, "printf", printfType);
+
+        var scanfType = LLVM.FunctionType(LLVM.Int32Type(), printfParamTypes, true);
+        LLVM.AddFunction(module, "scanf", scanfType);
+    }
+
+    private LLVMValueRef GetPrintfFormatString(TypeKind type)
+    {
+        return type switch
+        {
+            TypeKind.Int => LLVM.GetNamedGlobal(LlvmModule, "strp_int"),
+            TypeKind.Long => LLVM.GetNamedGlobal(LlvmModule, "strp_long"),
+            TypeKind.Float => LLVM.GetNamedGlobal(LlvmModule, "strp_float"),
+            TypeKind.Double => LLVM.GetNamedGlobal(LlvmModule, "strp_double"),
+            _ => throw new InvalidOperationException($"Unsupported type for printf: {type}")
+        };
+    }
+
+    private LLVMValueRef GetScanfFormatString(TypeKind type)
+    {
+        return type switch
+        {
+            TypeKind.Int => LLVM.GetNamedGlobal(LlvmModule, "strs_int"),
+            TypeKind.Long => LLVM.GetNamedGlobal(LlvmModule, "strs_long"),
+            TypeKind.Float => LLVM.GetNamedGlobal(LlvmModule, "strs_float"),
+            TypeKind.Double => LLVM.GetNamedGlobal(LlvmModule, "strs_double"),
+            _ => throw new InvalidOperationException($"Unsupported type for scanf: {type}")
+        };
     }
 
     private void CreateMain(LLVMModuleRef module, LLVMBuilderRef builder)
@@ -102,26 +248,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var entryBlock = LLVM.AppendBasicBlock(mainFunc, "entry");
         LLVM.PositionBuilderAtEnd(builder, entryBlock);
-    }
-
-    private void SetupGlobalFunctions(LLVMModuleRef module)
-    {
-        var i8Type = LLVM.Int8Type();
-        var i8PtrType = LLVM.PointerType(i8Type, 0);
-
-        var printfFormatStr = CreateStringConstant(module, "strp", "%d\n\0");
-
-        var scanfFormatStr = CreateStringConstant(module, "strs", "%d\0");
-
-        // Declare external functions (printf and scanf)
-        LLVMTypeRef[] printfParamTypes = [i8PtrType];
-        var printfType = LLVM.FunctionType(LLVM.Int32Type(),
-            printfParamTypes, true);
-        var printfFunc = LLVM.AddFunction(module, "printf", printfType);
-
-        var scanfType = LLVM.FunctionType(LLVM.Int32Type(),
-            printfParamTypes, true);
-        var scanfFunc = LLVM.AddFunction(module, "scanf", scanfType);
     }
 
     private static LLVMValueRef CreateStringConstant(
@@ -161,5 +287,10 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return LLVM.CreateEnumAttribute(
             LLVM.GetGlobalContext(),
             LLVM.GetEnumAttributeKindForName(name, name.Length), 0);
+    }
+
+    public void Dispose()
+    {
+        LLVM.DisposeBuilder(_llvmBuilder);
     }
 }

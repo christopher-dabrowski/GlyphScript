@@ -31,10 +31,10 @@ declaration
     ;
 
 immediateValue
-    : INT
-    | LONG
-    | FLOAT
-    | DOUBLE
+    : INT_LITERAL
+    | LONG_LITERAL
+    | FLOAT_LITERAL
+    | DOUBLE_LITERAL
     ;
 
 type
@@ -86,12 +86,20 @@ ID
     : [a-zA-Z_] [a-zA-Z_0-9]*
     ;
 
-DECIMAL_ATOM
-    : [0-9]+ ('.' [0-9]+)
+LONG_LITERAL
+    : [0-9]+ [lL]
     ;
 
-INT_ATOM
+INT_LITERAL
     : [0-9]+
+    ;
+
+DOUBLE_LITERAL
+    : [0-9]+ ('.' [0-9]+)? [dD]
+    ;
+
+FLOAT_LITERAL
+    : [0-9]+ ('.' [0-9]+)? [fF]?
     ;
 
 NEWLINE

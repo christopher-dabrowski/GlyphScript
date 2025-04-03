@@ -39,25 +39,46 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitProgram([NotNull] GlyphScriptParser.ProgramContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>write</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.statement"/>.
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.statement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitWrite([NotNull] GlyphScriptParser.WriteContext context);
+	Result VisitStatement([NotNull] GlyphScriptParser.StatementContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>assign</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.statement"/>.
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.print"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
-	Result VisitAssign([NotNull] GlyphScriptParser.AssignContext context);
+	Result VisitPrint([NotNull] GlyphScriptParser.PrintContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>read</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.statement"/>.
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.read"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitRead([NotNull] GlyphScriptParser.ReadContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.assignment"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAssignment([NotNull] GlyphScriptParser.AssignmentContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.declaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitDeclaration([NotNull] GlyphScriptParser.DeclarationContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.immediateValue"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitImmediateValue([NotNull] GlyphScriptParser.ImmediateValueContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.type"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitType([NotNull] GlyphScriptParser.TypeContext context);
 }
 } // namespace GlyphScriptCompiler.Antlr
