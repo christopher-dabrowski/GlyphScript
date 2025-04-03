@@ -1,5 +1,4 @@
 ﻿using GlyphScriptCompiler;
-using LLVMSharp;
 
 try
 {
@@ -7,12 +6,7 @@ try
     arguments.Validate();
 
     var compiler = new GlyphScriptLlvmCompiler();
-    var llvmModule = compiler.Compile(arguments.InputFilePath);
-
-    LLVM.PrintModuleToFile(llvmModule, arguments.OutputFilePath, out var errorMessage);
-    if (!string.IsNullOrEmpty(errorMessage))
-        throw new InvalidOperationException(errorMessage);
-
+    compiler.CompileToFile(arguments.InputFilePath, arguments.OutputFilePath);
     return 0;
 }
 catch (Exception ex)

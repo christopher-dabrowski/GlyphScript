@@ -25,6 +25,15 @@ public sealed class GlyphScriptLlvmCompiler
         return module;
     }
 
+    public void CompileToFile(string codeFilePath, string outputFilePath)
+    {
+        var module = Compile(codeFilePath);
+
+        LLVM.PrintModuleToFile(module, outputFilePath, out var errorMessage);
+        if (!string.IsNullOrEmpty(errorMessage))
+            throw new InvalidOperationException(errorMessage);
+    }
+
     private ICharStream OpenCodeFile(string? filePath)
     {
         if (filePath is null)
