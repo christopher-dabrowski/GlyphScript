@@ -19,6 +19,7 @@
 // Ambiguous reference in cref attribute
 #pragma warning disable 419
 
+namespace GlyphScriptCompiler.Antlr {
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 using IToken = Antlr4.Runtime.IToken;
@@ -59,3 +60,4 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitRead([NotNull] GlyphScriptParser.ReadContext context);
 }
+} // namespace GlyphScriptCompiler.Antlr

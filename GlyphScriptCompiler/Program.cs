@@ -1,5 +1,6 @@
 ﻿using Antlr4.Runtime;
 using GlyphScriptCompiler;
+using GlyphScriptCompiler.Antlr;
 using LLVMSharp;
 
 // var llvmGenerator = new LlvmGenerator();

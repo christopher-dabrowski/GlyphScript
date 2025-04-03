@@ -1,8 +1,9 @@
-GRAMMAR_FILE = GlyphScript.g4
-COMPILER_DIR = GlyphScriptCompiler
-
 SOURCE_FILE = program.gs
 OUTPUT_FILE = program.ll
+
+GRAMMAR_FILE = GlyphScript.g4
+COMPILER_DIR = GlyphScriptCompiler/Antlr
+NAMESPACE = GlyphScriptCompiler.Antlr
 
 compile:
 	dotnet run \
@@ -17,7 +18,8 @@ generateCompiler:
 		-no-listener \
 		-o $(COMPILER_DIR) \
 		-Werror \
-		$(GRAMMAR_FILE)
+		$(GRAMMAR_FILE) \
+		-package $(NAMESPACE)
 
 test:
 	dotnet test ./GlyphScriptCompiler.IntegrationTests

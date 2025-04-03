@@ -1,3 +1,4 @@
+using GlyphScriptCompiler.Antlr;
 using LLVMSharp;
 
 namespace GlyphScriptCompiler;
