@@ -8,5 +8,8 @@
   "[antlr]": {
     "editor.defaultFormatter": "mike-lischke.vscode-antlr4"
   },
-  "makefile.configureOnOpen": false
+  "makefile.configureOnOpen": false,
+  "[makefile]": {
+    "editor.detectIndentation": false
+  }
 }
