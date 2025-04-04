@@ -38,8 +38,11 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     {
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
-        var value = (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
-            throw new InvalidOperationException("Failed to create immediate value"));
+
+        var value = context.immediateValue() != null
+            ? (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
+                throw new InvalidOperationException("Failed to create immediate value"))
+            : GetDefaultValueForType(type);
 
         if (_variables.ContainsKey(id))
         {
@@ -287,6 +290,18 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return LLVM.CreateEnumAttribute(
             LLVM.GetGlobalContext(),
             LLVM.GetEnumAttributeKindForName(name, name.Length), 0);
+    }
+
+    private static LLVMValueRef GetDefaultValueForType(TypeKind type)
+    {
+        return type switch
+        {
+            TypeKind.Int => LLVM.ConstInt(LLVM.Int32Type(), 0, false),
+            TypeKind.Long => LLVM.ConstInt(LLVM.Int64Type(), 0, false),
+            TypeKind.Float => LLVM.ConstReal(LLVM.FloatType(), 0.0f),
+            TypeKind.Double => LLVM.ConstReal(LLVM.DoubleType(), 0.0),
+            _ => throw new InvalidOperationException($"Unsupported type: {type}")
+        };
     }
 
     public void Dispose()
