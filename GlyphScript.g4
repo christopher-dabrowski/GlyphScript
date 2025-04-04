@@ -27,7 +27,8 @@ assignment
     ;
 
 declaration
-    : type ID '=' immediateValue
+    : type ID
+    | type ID '=' immediateValue
     ;
 
 immediateValue
