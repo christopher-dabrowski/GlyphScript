@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Xunit.Abstractions;
 
 namespace GlyphScriptCompiler.IntegrationTests.TestHelpers;
 

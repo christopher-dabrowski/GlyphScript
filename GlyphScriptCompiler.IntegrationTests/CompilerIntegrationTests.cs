@@ -1,4 +1,3 @@
-using Xunit.Abstractions;
 using GlyphScriptCompiler.IntegrationTests.TestHelpers;
 
 namespace GlyphScriptCompiler.IntegrationTests;
