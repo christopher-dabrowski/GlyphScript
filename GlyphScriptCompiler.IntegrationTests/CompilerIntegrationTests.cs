@@ -37,6 +37,42 @@ public class CompilerIntegrationTests : IDisposable
         Assert.Equal(expectedOutput, output);
     }
 
+    [Fact]
+    public async Task ShouldReadAndPrintInt()
+    {
+        var output = await RunProgram("readAndPrintInt.gs", "123\n");
+
+        var expectedOutput = "123\n";
+        Assert.Equal(expectedOutput, output);
+    }
+
+    [Fact]
+    public async Task ShouldPrintFloat()
+    {
+        var output = await RunProgram("printFloat.gs", "");
+
+        var expectedOutput = "3.140000\n";
+        Assert.Equal(expectedOutput, output);
+    }
+
+    [Fact]
+    public async Task ShouldReadAndPrintFloat()
+    {
+        var output = await RunProgram("readAndPrintFloat.gs", "2.718\n");
+
+        var expectedOutput = "2.718000\n";
+        Assert.Equal(expectedOutput, output);
+    }
+
+    [Fact]
+    public async Task ShouldPrintDouble()
+    {
+        var output = await RunProgram("printDouble.gs", "");
+
+        var expectedOutput = "3.141593\n";
+        Assert.Equal(expectedOutput, output);
+    }
+
     public void Dispose()
     {
         _runner.Dispose();
