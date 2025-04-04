@@ -5,6 +5,8 @@ namespace GlyphScriptCompiler.IntegrationTests;
 
 public class CompilerIntegrationTests : IDisposable
 {
+    private const string TestFilesDirectory = "TestData";
+
     private readonly string _testProgramPath;
     private readonly ITestOutputHelper _output;
     private readonly ProgramRunner _runner;
@@ -14,22 +16,25 @@ public class CompilerIntegrationTests : IDisposable
         _output = output;
         _runner = new ProgramRunner(output);
 
-        // Find test program path
         var currentDir = new DirectoryInfo(AppContext.BaseDirectory);
-        _testProgramPath = Path.Combine(currentDir.FullName, "TestData", "program.gs");
+        _testProgramPath = Path.Combine(currentDir.FullName, TestFilesDirectory, "program.gs");
+    }
 
-        if (!File.Exists(_testProgramPath))
-        {
-            throw new Exception($"Test program not found at: {_testProgramPath}");
-        }
+    private async Task<string> RunProgram(string program, string input)
+    {
+        var currentDir = new DirectoryInfo(AppContext.BaseDirectory);
+        var programPath = Path.Combine(currentDir.FullName, TestFilesDirectory, program);
+
+        var output = await _runner.RunProgramAsync(programPath, input);
+        return output;
     }
 
     [Fact]
-    public async Task CompileAndRunProgram_ShouldProduceExpectedOutput()
+    public async Task ShouldDeclareAndPrintInt()
     {
-        var output = await _runner.RunProgramAsync(_testProgramPath, "42");
+        var output = await RunProgram("declareAndPrintInt.gs", "");
 
-        const string expectedOutput = "5\n42\n"; // First write shows 5, read changes it to 5, second write shows 5
+        var expectedOutput = "42\n";
         Assert.Equal(expectedOutput, output);
     }
 
