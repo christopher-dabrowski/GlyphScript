@@ -1,0 +1,43 @@
+# Git files
+.git
+.gitignore
+.github
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+TestResults/
+
+# Visual Studio / Rider / VS Code files
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# NuGet packages
+*.nupkg
+**/packages/*
+*.nuget.props
+*.nuget.targets
+
+# macOS specific
+.DS_Store
+._*
+
+# Miscellaneous
+*.swp
+*.log
+*.tmp
+Dockerfile*
+.dockerignore
+Makefile
+README.md
+LICENSE.txt

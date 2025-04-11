@@ -1,0 +1,13 @@
+FROM mcr.microsoft.com/dotnet/sdk:9.0
+
+RUN apt-get update && \
+  apt-get install -y llvm clang && \
+  rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY . .
+
+RUN dotnet restore
+
+ENTRYPOINT ["dotnet", "test", "GlyphScriptCompiler.IntegrationTests/GlyphScriptCompiler.IntegrationTests.csproj", "--logger", "trx", "--results-directory", "/app/TestResults"]
