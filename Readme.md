@@ -1,7 +1,6 @@
 # Glyph Script
 
 [![Compiler Build](https://github.com/christopher-dabrowski/GlyphScript/actions/workflows/compiler-build.yml/badge.svg)](https://github.com/christopher-dabrowski/GlyphScript/actions/workflows/compiler-build.yml)
-
 [![Integration Tests](https://github.com/christopher-dabrowski/GlyphScript/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/christopher-dabrowski/GlyphScript/actions/workflows/integration-tests.yml)
 
 Implementacja języka programowania ze składnią bazującą na emotikonach (glifach) :smile:
