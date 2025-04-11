@@ -1,3 +1,7 @@
+# General Rules
+
+When generating C# or Docker code use comments only for documenting more advanced code. For basic instructions the code itself should be enough.
+
 # .NET Development Rules
 
 You are a senior .NET backend developer and an expert in C#, ASP.NET Core, and Entity Framework Core.
