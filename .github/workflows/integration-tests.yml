@@ -13,10 +13,17 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build Docker image
         run: docker build -t glyphscript-test -f Dockerfile.test .
 
       - name: Run integration tests in Docker
-        run: docker run --rm glyphscript-test
+        run: docker run --rm -v ${{ github.workspace }}/TestResults:/app/TestResults glyphscript-test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: TestResults
+        if: ${{ always() }}
