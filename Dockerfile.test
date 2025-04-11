@@ -10,4 +10,4 @@ COPY . .
 
 RUN dotnet restore
 
-ENTRYPOINT ["dotnet", "test", "GlyphScriptCompiler.IntegrationTests/GlyphScriptCompiler.IntegrationTests.csproj", "--logger", "trx", "--results-directory", "/app/TestResults"]
+ENTRYPOINT ["dotnet", "test", "GlyphScriptCompiler.IntegrationTests/GlyphScriptCompiler.IntegrationTests.csproj", "--logger", "xunit;LogFileName=TestResults.xml", "--results-directory", "/app/TestResults"]
