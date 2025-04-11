@@ -15,8 +15,8 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 
 ### Wymagania minimalne
 
-- [ ] obsługa dwóch typów zmiennych: całkowite, rzeczywiste,
-- [ ] podstawowa obsługa standardowego wejścia-wyjścia
+- [x] obsługa dwóch typów zmiennych: całkowite, rzeczywiste,
+- [x] podstawowa obsługa standardowego wejścia-wyjścia
 - [ ] obsługa podstawowych operacji artmetycznych,
 - [ ] wskazywanie błędów podczas analizy leksykalno-składniowej
 
@@ -27,5 +27,5 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 - [ ] obsługa wartości logicznych
   - [ ] AND, OR, XOR, NEG
   - [ ] short-circuit boolean evaluation
-- [ ] obsługa liczb o różnej precyzji
+- [x] obsługa liczb o różnej precyzji
 - [ ] obsługa typu ciąg znaków
