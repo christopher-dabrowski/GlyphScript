@@ -78,13 +78,11 @@ FLOAT
     ;
 
 WRITE
-    : '📢'
-    | ':loudspeaker:'
+    : LOUDSPEAKER_EMOJI
     ;
 
 READ
-    : '⌨️'
-    | ':keyboard:'
+    : KEYBOARD_EMOJI
     ;
 
 STRING
@@ -111,6 +109,27 @@ FLOAT_LITERAL
     : [0-9]+ ('.' [0-9]+)? [fF]?
     ;
 
+ADDITION_SYMBOL
+    : '+'
+    | PLUS_EMOJI
+    ;
+
+SUBTRACTION_SYMBOL
+    : '-'
+    | MINUS_EMOJI
+    ;
+
+MULTIPLICATION_SYMBOL
+    : '*'
+    | ASTERISK_EMOJI
+    | MULTIPLICATION_EMOJI
+    ;
+
+DIVISION_SYMBOL
+    : '/'
+    | DIVISION_EMOJI
+    ;
+
 NEWLINE
     : '\r'? '\n'
     ;
@@ -121,6 +140,41 @@ WHITE_SPACE
 
 fragment STRING_CHAR
     : ~[\\'\n\r\t$]
+    ;
+
+fragment LOUDSPEAKER_EMOJI
+    : '📢'
+    | ':loudspeaker:'
+    ;
+
+fragment KEYBOARD_EMOJI
+    : '⌨️'
+    | ':keyboard:'
+    ;
+
+fragment PLUS_EMOJI
+    : '➕'
+    | ':heavy_plus_sign:'
+    ;
+
+fragment MINUS_EMOJI
+    : '➖'
+    | ':heavy_minus_sign:'
+    ;
+
+fragment ASTERISK_EMOJI
+    : '*️⃣'
+    | ':asterisk:'
+    ;
+
+fragment MULTIPLICATION_EMOJI
+    : '✖️'
+    | ':heavy_multiplication_x:'
+    ;
+
+fragment DIVISION_EMOJI
+    : '➗'
+    | ':heavy_division_sign:'
     ;
 
 fragment INT_SYMBOL
