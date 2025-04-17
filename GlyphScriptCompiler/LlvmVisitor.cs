@@ -36,13 +36,37 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitDeclaration(GlyphScriptParser.DeclarationContext context)
     {
+        return VisitChildren(context);
+    }
+
+    public override object? VisitDefaultDeclaration(GlyphScriptParser.DefaultDeclarationContext context)
+    {
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
 
-        var value = context.immediateValue() != null
-            ? (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
-                throw new InvalidOperationException("Failed to create immediate value"))
-            : GetDefaultValueForType(type);
+        var value = GetDefaultValueForType(type);
+
+        if (_variables.ContainsKey(id))
+        {
+            throw new InvalidOperationException($"Variable '{id}' is already defined.");
+        }
+
+        var llvmType = GetLlvmType(type);
+        var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
+
+        LLVM.BuildStore(_llvmBuilder, value, variable);
+
+        _variables[id] = (variable, type);
+        return null;
+    }
+
+    public override object? VisitInitializingDeclaration(GlyphScriptParser.InitializingDeclarationContext context)
+    {
+        var type = GetTypeFromContext(context.type());
+        var id = context.ID().GetText();
+
+        var value = (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
+            throw new InvalidOperationException("Failed to create immediate value"));
 
         if (_variables.ContainsKey(id))
         {
@@ -107,11 +131,9 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var value = LLVM.BuildLoad(_llvmBuilder, variable.Value, string.Empty);
 
-        // Convert float to double if needed
+        // To print float we need to convert it to double first
         if (variable.Type == TypeKind.Float)
-        {
             value = LLVM.BuildFPExt(_llvmBuilder, value, LLVM.DoubleType(), string.Empty);
-        }
 
         var args = new[] { GetStringPtr(_llvmBuilder, printfFormatStr), value };
 

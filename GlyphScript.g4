@@ -27,8 +27,16 @@ assignment
     ;
 
 declaration
+    : defaultDeclaration
+    | initializingDeclaration
+    ;
+
+defaultDeclaration
     : type ID
-    | type ID '=' immediateValue
+    ;
+
+initializingDeclaration
+    : type ID '=' immediateValue
     ;
 
 immediateValue
