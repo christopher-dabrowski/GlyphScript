@@ -45,6 +45,48 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitStatement([NotNull] GlyphScriptParser.StatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>powerExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitPowerExp([NotNull] GlyphScriptParser.PowerExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>mulDivExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMulDivExp([NotNull] GlyphScriptParser.MulDivExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>parenthesisExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParenthesisExp([NotNull] GlyphScriptParser.ParenthesisExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>idAtomExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitIdAtomExp([NotNull] GlyphScriptParser.IdAtomExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>addSubExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAddSubExp([NotNull] GlyphScriptParser.AddSubExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>valueExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitValueExp([NotNull] GlyphScriptParser.ValueExpContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="GlyphScriptParser.print"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

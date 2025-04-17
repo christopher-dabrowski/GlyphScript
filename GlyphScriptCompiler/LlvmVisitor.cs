@@ -65,8 +65,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
 
-        var value = (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
-            throw new InvalidOperationException("Failed to create immediate value"));
+        var value = (LLVMValueRef)(Visit(context.expression()) ??
+            throw new InvalidOperationException("Failed to create expression"));
 
         if (_variables.ContainsKey(id))
         {
@@ -91,19 +91,12 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public override object? VisitAssignment(GlyphScriptParser.AssignmentContext context)
     {
         var id = context.ID().GetText();
-        var value = (LLVMValueRef)(VisitImmediateValue(context.immediateValue()) ??
-            throw new InvalidOperationException("Failed to create immediate value"));
+        var value = (LLVMValueRef)(Visit(context.expression()) ??
+            throw new InvalidOperationException("Failed to create expression"));
 
         if (!_variables.TryGetValue(id, out var variable))
         {
             throw new InvalidOperationException($"Variable '{id}' is not defined.");
-        }
-
-        var valueType = GetTypeFromImmediateValue(context.immediateValue());
-        if (valueType != variable.Type)
-        {
-            throw new InvalidOperationException(
-                $"Type mismatch: Cannot assign {valueType} value to variable of type {variable.Type}");
         }
 
         // Ensure the value type matches the variable type
@@ -181,6 +174,97 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             return LLVM.ConstReal(LLVM.DoubleType(), value);
         }
         throw new InvalidOperationException("Invalid immediate value");
+    }
+
+    public override object? VisitParenthesisExp(GlyphScriptParser.ParenthesisExpContext context)
+    {
+        return Visit(context.expression());
+    }
+
+    public override object? VisitMulDivExp(GlyphScriptParser.MulDivExpContext context)
+    {
+        var left = (LLVMValueRef)(Visit(context.expression(0)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+        var right = (LLVMValueRef)(Visit(context.expression(1)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+
+        var leftType = LLVM.TypeOf(left);
+        var rightType = LLVM.TypeOf(right);
+
+        if (LLVM.GetTypeKind(leftType) != LLVM.GetTypeKind(rightType))
+        {
+            throw new InvalidOperationException("Type mismatch in multiplication/division operation");
+        }
+
+        return context.MULTIPLICATION_SYMBOL() != null
+            ? LLVM.BuildMul(_llvmBuilder, left, right, "mul")
+            : LLVM.BuildSDiv(_llvmBuilder, left, right, "div");
+    }
+
+    public override object? VisitAddSubExp(GlyphScriptParser.AddSubExpContext context)
+    {
+        var left = (LLVMValueRef)(Visit(context.expression(0)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+        var right = (LLVMValueRef)(Visit(context.expression(1)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+
+        var leftType = LLVM.TypeOf(left);
+        var rightType = LLVM.TypeOf(right);
+
+        if (LLVM.GetTypeKind(leftType) != LLVM.GetTypeKind(rightType))
+        {
+            throw new InvalidOperationException("Type mismatch in addition/subtraction operation");
+        }
+
+        return context.ADDITION_SYMBOL() != null
+            ? LLVM.BuildAdd(_llvmBuilder, left, right, "add")
+            : LLVM.BuildSub(_llvmBuilder, left, right, "sub");
+    }
+
+    public override object? VisitPowerExp(GlyphScriptParser.PowerExpContext context)
+    {
+        var left = (LLVMValueRef)(Visit(context.expression(0)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+        var right = (LLVMValueRef)(Visit(context.expression(1)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+
+        var leftType = LLVM.TypeOf(left);
+        var rightType = LLVM.TypeOf(right);
+
+        if (LLVM.GetTypeKind(leftType) != LLVM.GetTypeKind(rightType))
+        {
+            throw new InvalidOperationException("Type mismatch in power operation");
+        }
+
+        // For power operation, we need to use the pow function from math library
+        var powFunc = LLVM.GetNamedFunction(LlvmModule, "pow");
+        if (powFunc.Pointer == IntPtr.Zero)
+        {
+            var powType = LLVM.FunctionType(LLVM.DoubleType(), [LLVM.DoubleType(), LLVM.DoubleType()], false);
+            powFunc = LLVM.AddFunction(LlvmModule, "pow", powType);
+        }
+
+        // Convert operands to double if they're not already
+        if (LLVM.GetTypeKind(leftType) != LLVMTypeKind.LLVMDoubleTypeKind)
+        {
+            left = LLVM.BuildSIToFP(_llvmBuilder, left, LLVM.DoubleType(), "to_double");
+        }
+        if (LLVM.GetTypeKind(rightType) != LLVMTypeKind.LLVMDoubleTypeKind)
+        {
+            right = LLVM.BuildSIToFP(_llvmBuilder, right, LLVM.DoubleType(), "to_double");
+        }
+
+        return LLVM.BuildCall(_llvmBuilder, powFunc, [left, right], "pow");
+    }
+
+    public override object? VisitValueExp(GlyphScriptParser.ValueExpContext context)
+    {
+        return Visit(context.immediateValue());
+    }
+
+    public override object? VisitIdAtomExp(GlyphScriptParser.IdAtomExpContext context)
+    {
+        var id = context.ID().GetText();
+        if (!_variables.TryGetValue(id, out var variable))
+        {
+            throw new InvalidOperationException($"Variable '{id}' is not defined.");
+        }
+
+        return LLVM.BuildLoad(_llvmBuilder, variable.Value, id);
     }
 
     private static TypeKind GetTypeFromImmediateValue(GlyphScriptParser.ImmediateValueContext context)

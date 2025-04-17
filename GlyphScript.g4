@@ -14,6 +14,16 @@ statement
     | read
     ;
 
+expression
+    : '(' expression ')'                                              # parenthesisExp
+    | expression (MULTIPLICATION_SYMBOL | DIVISION_SYMBOL) expression # mulDivExp
+    | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
+    // TODO: Add emoji for power
+    | <assoc = right> expression '^' expression                       # powerExp
+    | immediateValue                                                  # valueExp
+    | ID                                                              # idAtomExp
+    ;
+
 print
     : WRITE ID
     ;
@@ -23,7 +33,7 @@ read
     ;
 
 assignment
-    : ID '=' immediateValue
+    : ID '=' expression
     ;
 
 declaration
@@ -36,7 +46,7 @@ defaultDeclaration
     ;
 
 initializingDeclaration
-    : type ID '=' immediateValue
+    : type ID '=' expression
     ;
 
 immediateValue
