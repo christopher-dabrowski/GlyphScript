@@ -76,8 +76,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var llvmType = GetLlvmType(type);
         var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
 
-        // Ensure the value type matches the variable type
-        if (LLVM.GetTypeKind(LLVM.TypeOf(value)) != LLVM.GetTypeKind(llvmType))
+        var valueTypeKind = LLVM.GetTypeKind(LLVM.TypeOf(value));
+        if (valueTypeKind != LLVM.GetTypeKind(llvmType))
         {
             throw new InvalidOperationException($"Type mismatch in declaration of variable '{id}'");
         }
@@ -99,7 +99,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             throw new InvalidOperationException($"Variable '{id}' is not defined.");
         }
 
-        // Ensure the value type matches the variable type
         var llvmType = GetLlvmType(variable.Type);
         if (LLVM.GetTypeKind(LLVM.TypeOf(value)) != LLVM.GetTypeKind(llvmType))
         {
@@ -188,15 +187,36 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var leftType = LLVM.TypeOf(left);
         var rightType = LLVM.TypeOf(right);
+        var leftKind = LLVM.GetTypeKind(leftType);
+        var rightKind = LLVM.GetTypeKind(rightType);
 
-        if (LLVM.GetTypeKind(leftType) != LLVM.GetTypeKind(rightType))
+        if (leftKind != rightKind)
         {
-            throw new InvalidOperationException("Type mismatch in multiplication/division operation");
+            if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
+            {
+                left = LLVM.BuildSIToFP(_llvmBuilder, left, rightType, "promote_to_float");
+                leftType = rightType;
+            }
+            else if (rightKind is LLVMTypeKind.LLVMIntegerTypeKind && leftKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
+            {
+                right = LLVM.BuildSIToFP(_llvmBuilder, right, leftType, "promote_to_float");
+                rightType = leftType;
+            }
+            else
+            {
+                throw new InvalidOperationException("Type mismatch in multiplication/division operation");
+            }
         }
 
+        var isFloatingPoint = LLVM.GetTypeKind(leftType) is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind;
+
         return context.MULTIPLICATION_SYMBOL() != null
-            ? LLVM.BuildMul(_llvmBuilder, left, right, "mul")
-            : LLVM.BuildSDiv(_llvmBuilder, left, right, "div");
+            ? (isFloatingPoint
+                ? LLVM.BuildFMul(_llvmBuilder, left, right, "fmul")
+                : LLVM.BuildMul(_llvmBuilder, left, right, "mul"))
+            : (isFloatingPoint
+                ? LLVM.BuildFDiv(_llvmBuilder, left, right, "fdiv")
+                : LLVM.BuildSDiv(_llvmBuilder, left, right, "div"));
     }
 
     public override object? VisitAddSubExp(GlyphScriptParser.AddSubExpContext context)
@@ -206,15 +226,36 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var leftType = LLVM.TypeOf(left);
         var rightType = LLVM.TypeOf(right);
+        var leftKind = LLVM.GetTypeKind(leftType);
+        var rightKind = LLVM.GetTypeKind(rightType);
 
-        if (LLVM.GetTypeKind(leftType) != LLVM.GetTypeKind(rightType))
+        if (leftKind != rightKind)
         {
-            throw new InvalidOperationException("Type mismatch in addition/subtraction operation");
+            if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
+            {
+                left = LLVM.BuildSIToFP(_llvmBuilder, left, rightType, "promote_to_float");
+                leftType = rightType;
+            }
+            else if (rightKind is LLVMTypeKind.LLVMIntegerTypeKind && leftKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
+            {
+                right = LLVM.BuildSIToFP(_llvmBuilder, right, leftType, "promote_to_float");
+                rightType = leftType;
+            }
+            else
+            {
+                throw new InvalidOperationException("Type mismatch in addition/subtraction operation");
+            }
         }
 
+        var isFloatingPoint = LLVM.GetTypeKind(leftType) is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind;
+
         return context.ADDITION_SYMBOL() != null
-            ? LLVM.BuildAdd(_llvmBuilder, left, right, "add")
-            : LLVM.BuildSub(_llvmBuilder, left, right, "sub");
+            ? (isFloatingPoint
+                ? LLVM.BuildFAdd(_llvmBuilder, left, right, "fadd")
+                : LLVM.BuildAdd(_llvmBuilder, left, right, "add"))
+            : (isFloatingPoint
+                ? LLVM.BuildFSub(_llvmBuilder, left, right, "fsub")
+                : LLVM.BuildSub(_llvmBuilder, left, right, "sub"));
     }
 
     public override object? VisitPowerExp(GlyphScriptParser.PowerExpContext context)
@@ -224,13 +265,28 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var leftType = LLVM.TypeOf(left);
         var rightType = LLVM.TypeOf(right);
+        var leftKind = LLVM.GetTypeKind(leftType);
+        var rightKind = LLVM.GetTypeKind(rightType);
 
-        if (LLVM.GetTypeKind(leftType) != LLVM.GetTypeKind(rightType))
+        // Handle type promotion
+        if (leftKind != rightKind)
         {
-            throw new InvalidOperationException("Type mismatch in power operation");
+            if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
+            {
+                left = LLVM.BuildSIToFP(_llvmBuilder, left, rightType, "promote_to_float");
+                leftType = rightType;
+            }
+            else if (rightKind is LLVMTypeKind.LLVMIntegerTypeKind && leftKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
+            {
+                right = LLVM.BuildSIToFP(_llvmBuilder, right, leftType, "promote_to_float");
+                rightType = leftType;
+            }
+            else
+            {
+                throw new InvalidOperationException("Type mismatch in power operation");
+            }
         }
 
-        // For power operation, we need to use the pow function from math library
         var powFunc = LLVM.GetNamedFunction(LlvmModule, "pow");
         if (powFunc.Pointer == IntPtr.Zero)
         {
@@ -238,7 +294,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             powFunc = LLVM.AddFunction(LlvmModule, "pow", powType);
         }
 
-        // Convert operands to double if they're not already
         if (LLVM.GetTypeKind(leftType) != LLVMTypeKind.LLVMDoubleTypeKind)
         {
             left = LLVM.BuildSIToFP(_llvmBuilder, left, LLVM.DoubleType(), "to_double");
