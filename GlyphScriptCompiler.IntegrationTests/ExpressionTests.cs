@@ -72,6 +72,41 @@ public class ExpressionTests : IDisposable
         Assert.Equal(expectedOutput, output);
     }
 
+    [Fact]
+    public async Task ShouldEvaluateMultiplicationBeforeAddition()
+    {
+        var output = await RunProgram("basicOrderOfOperations.gs", "");
+        Assert.Equal("14\n", output);
+    }
+
+    [Fact]
+    public async Task ShouldRespectParenthesesPrecedence()
+    {
+        var output = await RunProgram("parenthesesPrecedence.gs", "");
+        Assert.Equal("20\n", output);
+    }
+
+    [Fact]
+    public async Task ShouldEvaluatePowerWithRightAssociativity()
+    {
+        var output = await RunProgram("powerRightAssociativity.gs", "");
+        Assert.Equal("512\n", output);
+    }
+
+    [Fact]
+    public async Task ShouldHandleMixedOperationsWithCorrectPrecedence()
+    {
+        var output = await RunProgram("mixedOperations.gs", "");
+        Assert.Equal("50\n", output);
+    }
+
+    [Fact]
+    public async Task ShouldEvaluateComplexExpressionsCorrectly()
+    {
+        var output = await RunProgram("complexExpression.gs", "");
+        Assert.Equal("55\n", output);
+    }
+
     public void Dispose()
     {
         _runner.Dispose();
