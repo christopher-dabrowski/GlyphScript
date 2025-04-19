@@ -29,3 +29,25 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
   - [ ] short-circuit boolean evaluation
 - [x] obsługa liczb o różnej precyzji
 - [ ] obsługa typu ciąg znaków
+
+## Decyzje Architektoniczne
+
+Kluczowe decyzje podjęte podczas implementacji.
+
+### Wzorzec Visitor
+
+#### Kontekst
+
+ALNTR umożliwia generację szkieletu kompilatora na porstawie wzorca **Listener** lub **Visitor**.
+
+### Decyzja
+
+W projekcie zastosowano wzorzec projektowy **Visitor** do implementacji analizy semantycznej oraz generacji kodu **zamiast domyślnego podejścia**, którym jest Listener.
+Dzięki temu możemy dokładnie decydować o sposobie przechodzenia drzewa AST oraz korzystać z szerszego kontekstu podczas generacji kodu LLVM.
+
+### Wpływ
+
+Przy generowaniu szkieletu kompilatora podawane są flagi `-visitor` oraz `-no-listener`, które wyłączają generację klasy Listener.
+Widać to w pliku [Makefile](Makefile), w targecie _generateCompiler_.
+
+Implementując kompilator w klasie [LlvmVisitor](GlyphScriptCompiler/LlvmVisitor.cs) bezpośrednio sterujemy przechodzeniem drzewa AST.
