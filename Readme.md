@@ -15,7 +15,7 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 
 ### Wymagania minimalne
 
-- [x] obsługa dwóch typów zmiennych: całkowite, rzeczywiste,
+- [x] obsługa dwóch typów zmiennych: całkowite, rzeczywiste - [BasicNumberTypesTests.cs](GlyphScriptCompiler.IntegrationTests/BasicNumberTypesTests.cs)
 - [x] podstawowa obsługa standardowego wejścia-wyjścia
 - [ ] obsługa podstawowych operacji artmetycznych,
 - [ ] wskazywanie błędów podczas analizy leksykalno-składniowej
