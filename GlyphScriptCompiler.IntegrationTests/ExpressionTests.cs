@@ -58,7 +58,7 @@ public class ExpressionTests : IDisposable
         var output = await RunProgram("intPowerOperation.gs", "");
 
         // 2^3 = 8
-        var expectedOutput = "8\n";
+        var expectedOutput = "8.000000\n";
         Assert.Equal(expectedOutput, output);
     }
 
