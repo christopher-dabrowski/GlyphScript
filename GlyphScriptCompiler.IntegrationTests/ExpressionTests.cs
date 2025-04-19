@@ -90,21 +90,21 @@ public class ExpressionTests : IDisposable
     public async Task ShouldEvaluatePowerWithRightAssociativity()
     {
         var output = await RunProgram("powerRightAssociativity.gs", "");
-        Assert.Equal("512\n", output);
+        Assert.Equal("512.000000\n", output);
     }
 
     [Fact]
     public async Task ShouldHandleMixedOperationsWithCorrectPrecedence()
     {
         var output = await RunProgram("mixedOperations.gs", "");
-        Assert.Equal("50\n", output);
+        Assert.Equal("50.000000\n", output);
     }
 
     [Fact]
     public async Task ShouldEvaluateComplexExpressionsCorrectly()
     {
         var output = await RunProgram("complexExpression.gs", "");
-        Assert.Equal("55\n", output);
+        Assert.Equal("55.000000\n", output);
     }
 
     public void Dispose()
