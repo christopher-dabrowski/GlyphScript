@@ -18,8 +18,7 @@ expression
     : '(' expression ')'                                              # parenthesisExp
     | expression (MULTIPLICATION_SYMBOL | DIVISION_SYMBOL) expression # mulDivExp
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
-    // TODO: Add emoji for power
-    | <assoc = right> expression '^' expression                       # powerExp
+    | <assoc = right> expression POWER_SYMBOL expression              # powerExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
     ;
@@ -135,6 +134,11 @@ MULTIPLICATION_SYMBOL
     | MULTIPLICATION_EMOJI
     ;
 
+POWER_SYMBOL
+    : '^'
+    | RED_TRIANGLE_EMOJI
+    ;
+
 DIVISION_SYMBOL
     : '/'
     | DIVISION_EMOJI
@@ -175,6 +179,11 @@ fragment MINUS_EMOJI
 fragment ASTERISK_EMOJI
     : '*️⃣'
     | ':asterisk:'
+    ;
+
+fragment RED_TRIANGLE_EMOJI
+    : '🔺'
+    | ':small_red_triangle:'
     ;
 
 fragment MULTIPLICATION_EMOJI
