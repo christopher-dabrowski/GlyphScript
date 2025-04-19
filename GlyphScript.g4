@@ -24,7 +24,7 @@ expression
     ;
 
 print
-    : WRITE ID
+    : WRITE expression
     ;
 
 read

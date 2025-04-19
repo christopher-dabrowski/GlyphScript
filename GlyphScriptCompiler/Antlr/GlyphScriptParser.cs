@@ -498,7 +498,9 @@ public partial class GlyphScriptParser : Parser {
 
 	public partial class PrintContext : ParserRuleContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode WRITE() { return GetToken(GlyphScriptParser.WRITE, 0); }
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ID() { return GetToken(GlyphScriptParser.ID, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext expression() {
+			return GetRuleContext<ExpressionContext>(0);
+		}
 		public PrintContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
@@ -522,7 +524,7 @@ public partial class GlyphScriptParser : Parser {
 			State = 65;
 			Match(WRITE);
 			State = 66;
-			Match(ID);
+			expression(0);
 			}
 		}
 		catch (RecognitionException re) {
@@ -898,9 +900,9 @@ public partial class GlyphScriptParser : Parser {
 		7,0,0,0,53,61,3,4,2,6,54,55,10,4,0,0,55,56,7,1,0,0,56,61,3,4,2,5,57,58,
 		10,3,0,0,58,59,5,21,0,0,59,61,3,4,2,3,60,51,1,0,0,0,60,54,1,0,0,0,60,57,
 		1,0,0,0,61,64,1,0,0,0,62,60,1,0,0,0,62,63,1,0,0,0,63,5,1,0,0,0,64,62,1,
-		0,0,0,65,66,5,10,0,0,66,67,5,13,0,0,67,7,1,0,0,0,68,69,5,11,0,0,69,70,
-		5,13,0,0,70,9,1,0,0,0,71,72,5,13,0,0,72,73,5,3,0,0,73,74,3,4,2,0,74,11,
-		1,0,0,0,75,78,3,14,7,0,76,78,3,16,8,0,77,75,1,0,0,0,77,76,1,0,0,0,78,13,
+		0,0,0,65,66,5,10,0,0,66,67,3,4,2,0,67,7,1,0,0,0,68,69,5,11,0,0,69,70,5,
+		13,0,0,70,9,1,0,0,0,71,72,5,13,0,0,72,73,5,3,0,0,73,74,3,4,2,0,74,11,1,
+		0,0,0,75,78,3,14,7,0,76,78,3,16,8,0,77,75,1,0,0,0,77,76,1,0,0,0,78,13,
 		1,0,0,0,79,80,3,20,10,0,80,81,5,13,0,0,81,15,1,0,0,0,82,83,3,20,10,0,83,
 		84,5,13,0,0,84,85,5,3,0,0,85,86,3,4,2,0,86,17,1,0,0,0,87,88,7,2,0,0,88,
 		19,1,0,0,0,89,90,7,3,0,0,90,21,1,0,0,0,8,23,28,32,40,49,60,62,77

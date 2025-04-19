@@ -111,20 +111,24 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitPrint(GlyphScriptParser.PrintContext context)
     {
-        var id = context.ID().GetText();
+        var value = (LLVMValueRef)(Visit(context.expression()) ??
+            throw new InvalidOperationException("Failed to create expression"));
 
-        if (!_variables.TryGetValue(id, out var variable))
+        var valueType = LLVM.TypeOf(value);
+        var valueKind = LLVM.GetTypeKind(valueType);
+        var printfFormatStr = valueKind switch
         {
-            throw new InvalidOperationException($"Variable '{id}' is not defined.");
-        }
+            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 32 => GetPrintfFormatString(TypeKind.Int),
+            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 64 => GetPrintfFormatString(TypeKind.Long),
+            LLVMTypeKind.LLVMFloatTypeKind => GetPrintfFormatString(TypeKind.Float),
+            LLVMTypeKind.LLVMDoubleTypeKind => GetPrintfFormatString(TypeKind.Double),
+            _ => throw new InvalidOperationException($"Unsupported type for printing: {valueKind}")
+        };
 
-        var printfFormatStr = GetPrintfFormatString(variable.Type);
         var printfFunc = LLVM.GetNamedFunction(LlvmModule, "printf");
 
-        var value = LLVM.BuildLoad(_llvmBuilder, variable.Value, string.Empty);
-
         // To print float we need to convert it to double first
-        if (variable.Type == TypeKind.Float)
+        if (valueKind == LLVMTypeKind.LLVMFloatTypeKind)
             value = LLVM.BuildFPExt(_llvmBuilder, value, LLVM.DoubleType(), string.Empty);
 
         var args = new[] { GetStringPtr(_llvmBuilder, printfFormatStr), value };
