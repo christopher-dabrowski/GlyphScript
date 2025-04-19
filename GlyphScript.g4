@@ -16,9 +16,9 @@ statement
 
 expression
     : '(' expression ')'                                              # parenthesisExp
+    | <assoc = right> expression POWER_SYMBOL expression              # powerExp
     | expression (MULTIPLICATION_SYMBOL | DIVISION_SYMBOL) expression # mulDivExp
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
-    | <assoc = right> expression POWER_SYMBOL expression              # powerExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
     ;

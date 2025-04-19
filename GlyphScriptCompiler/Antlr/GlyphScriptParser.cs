@@ -428,32 +428,25 @@ public partial class GlyphScriptParser : Parser {
 					switch ( Interpreter.AdaptivePredict(TokenStream,5,Context) ) {
 					case 1:
 						{
-						_localctx = new MulDivExpContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new PowerExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 51;
 						if (!(Precpred(Context, 5))) throw new FailedPredicateException(this, "Precpred(Context, 5)");
 						State = 52;
-						_la = TokenStream.LA(1);
-						if ( !(_la==MULTIPLICATION_SYMBOL || _la==DIVISION_SYMBOL) ) {
-						ErrorHandler.RecoverInline(this);
-						}
-						else {
-							ErrorHandler.ReportMatch(this);
-						    Consume();
-						}
+						Match(POWER_SYMBOL);
 						State = 53;
-						expression(6);
+						expression(5);
 						}
 						break;
 					case 2:
 						{
-						_localctx = new AddSubExpContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new MulDivExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 54;
 						if (!(Precpred(Context, 4))) throw new FailedPredicateException(this, "Precpred(Context, 4)");
 						State = 55;
 						_la = TokenStream.LA(1);
-						if ( !(_la==ADDITION_SYMBOL || _la==SUBTRACTION_SYMBOL) ) {
+						if ( !(_la==MULTIPLICATION_SYMBOL || _la==DIVISION_SYMBOL) ) {
 						ErrorHandler.RecoverInline(this);
 						}
 						else {
@@ -466,14 +459,21 @@ public partial class GlyphScriptParser : Parser {
 						break;
 					case 3:
 						{
-						_localctx = new PowerExpContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new AddSubExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 57;
 						if (!(Precpred(Context, 3))) throw new FailedPredicateException(this, "Precpred(Context, 3)");
 						State = 58;
-						Match(POWER_SYMBOL);
+						_la = TokenStream.LA(1);
+						if ( !(_la==ADDITION_SYMBOL || _la==SUBTRACTION_SYMBOL) ) {
+						ErrorHandler.RecoverInline(this);
+						}
+						else {
+							ErrorHandler.ReportMatch(this);
+						    Consume();
+						}
 						State = 59;
-						expression(3);
+						expression(4);
 						}
 						break;
 					}
@@ -897,8 +897,8 @@ public partial class GlyphScriptParser : Parser {
 		0,0,0,40,39,1,0,0,0,41,3,1,0,0,0,42,43,6,2,-1,0,43,44,5,1,0,0,44,45,3,
 		4,2,0,45,46,5,2,0,0,46,50,1,0,0,0,47,50,3,18,9,0,48,50,5,13,0,0,49,42,
 		1,0,0,0,49,47,1,0,0,0,49,48,1,0,0,0,50,62,1,0,0,0,51,52,10,5,0,0,52,53,
-		7,0,0,0,53,61,3,4,2,6,54,55,10,4,0,0,55,56,7,1,0,0,56,61,3,4,2,5,57,58,
-		10,3,0,0,58,59,5,21,0,0,59,61,3,4,2,3,60,51,1,0,0,0,60,54,1,0,0,0,60,57,
+		5,21,0,0,53,61,3,4,2,5,54,55,10,4,0,0,55,56,7,0,0,0,56,61,3,4,2,5,57,58,
+		10,3,0,0,58,59,7,1,0,0,59,61,3,4,2,4,60,51,1,0,0,0,60,54,1,0,0,0,60,57,
 		1,0,0,0,61,64,1,0,0,0,62,60,1,0,0,0,62,63,1,0,0,0,63,5,1,0,0,0,64,62,1,
 		0,0,0,65,66,5,10,0,0,66,67,3,4,2,0,67,7,1,0,0,0,68,69,5,11,0,0,69,70,5,
 		13,0,0,70,9,1,0,0,0,71,72,5,13,0,0,72,73,5,3,0,0,73,74,3,4,2,0,74,11,1,
