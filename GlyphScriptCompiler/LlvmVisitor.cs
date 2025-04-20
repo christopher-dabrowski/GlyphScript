@@ -1,4 +1,5 @@
 using GlyphScriptCompiler.Antlr;
+using GlyphScriptCompiler.SyntaxErrors;
 using LLVMSharp;
 
 namespace GlyphScriptCompiler;
@@ -95,9 +96,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             throw new InvalidOperationException("Failed to create expression"));
 
         if (!_variables.TryGetValue(id, out var variable))
-        {
-            throw new InvalidOperationException($"Variable '{id}' is not defined.");
-        }
+            throw new UndefinedVariableUsageException(context) { VariableName = id };
 
         var llvmType = GetLlvmType(variable.Type);
         if (LLVM.GetTypeKind(LLVM.TypeOf(value)) != LLVM.GetTypeKind(llvmType))
