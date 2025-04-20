@@ -1,4 +1,5 @@
 using GlyphScriptCompiler.IntegrationTests.TestHelpers;
+using GlyphScriptCompiler.SyntaxErrors;
 
 namespace GlyphScriptCompiler.IntegrationTests;
 
@@ -38,8 +39,14 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidAssignment()
     {
-        var output = await RunProgram("invalidAssignment.gs", "");
-        // Expected: Syntax error about invalid assignment
+        var exception = await Assert.ThrowsAsync<UndefinedVariableUsageException>(async () =>
+        {
+            await RunProgram("invalidAssignment.gs", "");
+        });
+
+        Assert.Equal(3, exception.Line);
+        Assert.Equal(0, exception.Column);
+        Assert.Equal("y", exception.VariableName);
     }
 
     [Fact]
