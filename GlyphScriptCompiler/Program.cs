@@ -13,7 +13,7 @@ try
 catch (InvalidSyntaxException e)
 {
     Console.Error.WriteLine($"Unable to compile the {arguments.InputFilePath} file. Syntax error detected:");
-    Console.Error.WriteLine(e);
+    Console.Error.WriteLine(e.Message);
     return 1;
 }
 catch (Exception ex)
