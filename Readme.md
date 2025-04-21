@@ -18,7 +18,7 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 - [x] obsługa dwóch typów zmiennych: całkowite, rzeczywiste - [BasicNumberTypesTests.cs](GlyphScriptCompiler.IntegrationTests/BasicNumberTypesTests.cs)
 - [x] podstawowa obsługa standardowego wejścia-wyjścia - [SimpleIoTests.cs](GlyphScriptCompiler.IntegrationTests/SimpleIoTests.cs)
 - [x] obsługa podstawowych operacji artmetycznych - [ExpressionTests.cs](GlyphScriptCompiler.IntegrationTests/ExpressionTests.cs)
-- [ ] wskazywanie błędów podczas analizy leksykalno-składniowej
+- [x] wskazywanie błędów podczas analizy leksykalno-składniowej - [SyntaxErrorTests.cs](GlyphScriptCompiler.IntegrationTests/SyntaxErrorTests.cs)
 
 ### Rozszerzenia
 
