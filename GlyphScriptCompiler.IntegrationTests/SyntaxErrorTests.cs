@@ -25,15 +25,19 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidVariableDeclaration()
     {
-        var output = await RunProgram("invalidDeclaration.gs", "");
-        // Expected: Syntax error about invalid type or missing type
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("invalidDeclaration.gs", "");
+        });
     }
 
     [Fact]
     public async Task ShouldDetectInvalidExpression()
     {
-        var output = await RunProgram("invalidExpression.gs", "");
-        // Expected: Syntax error about invalid expression
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("invalidExpression.gs", "");
+        });
     }
 
     [Fact]
@@ -52,43 +56,55 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidPrintStatement()
     {
-        var output = await RunProgram("invalidPrint.gs", "");
-        // Expected: Syntax error about invalid print statement
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("invalidPrint.gs", "");
+        });
     }
 
     [Fact]
     public async Task ShouldDetectInvalidReadStatement()
     {
-        var output = await RunProgram("invalidRead.gs", "");
-        // Expected: Syntax error about invalid read statement
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("invalidRead.gs", "");
+        });
     }
 
     [Fact]
     public async Task ShouldDetectUnmatchedParentheses()
     {
-        var output = await RunProgram("unmatchedParentheses.gs", "");
-        // Expected: Syntax error about unmatched parentheses
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("unmatchedParentheses.gs", "");
+        });
     }
 
     [Fact]
     public async Task ShouldDetectInvalidOperatorUsage()
     {
-        var output = await RunProgram("invalidOperator.gs", "");
-        // Expected: Syntax error about invalid operator usage
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("invalidOperator.gs", "");
+        });
     }
 
     [Fact]
     public async Task ShouldDetectInvalidTypeConversion()
     {
-        var output = await RunProgram("invalidTypeConversion.gs", "");
-        // Expected: Syntax error about invalid type conversion
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("invalidTypeConversion.gs", "");
+        });
     }
 
     [Fact]
     public async Task ShouldDetectInvalidIdentifier()
     {
-        var output = await RunProgram("invalidIdentifier.gs", "");
-        // Expected: Syntax error about invalid identifier
+        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        {
+            await RunProgram("invalidIdentifier.gs", "");
+        });
     }
 
     public void Dispose()
