@@ -1,5 +1,7 @@
 using Antlr4.Runtime;
+using Antlr4.Runtime.Misc;
 using GlyphScriptCompiler.Antlr;
+using GlyphScriptCompiler.SyntaxErrors;
 using LLVMSharp;
 
 namespace GlyphScriptCompiler;
@@ -12,9 +14,12 @@ public sealed class GlyphScriptLlvmCompiler
 
         var lexer = new GlyphScriptLexer(codeFile);
         var tokenStream = new CommonTokenStream(lexer);
-        var parser = new GlyphScriptParser(tokenStream);
+        var parser = new GlyphScriptParser(tokenStream)
+        {
+            ErrorHandler = new BailErrorStrategy()
+        };
 
-        var context = parser.program();
+        var context = ParseProgram(parser);
 
         var moduleName = Path.GetFileNameWithoutExtension(codeFilePath);
         var module = LLVM.ModuleCreateWithName(moduleName);
@@ -42,5 +47,19 @@ public sealed class GlyphScriptLlvmCompiler
             throw new InvalidOperationException($"File {filePath} does not exist.");
 
         return CharStreams.fromPath(filePath);
+    }
+
+    private GlyphScriptParser.ProgramContext ParseProgram(GlyphScriptParser parser)
+    {
+        try
+        {
+            return parser.program();
+        }
+        catch (ParseCanceledException e)
+        {
+            if (e.InnerException is NoViableAltException nve)
+                throw new InvalidSyntaxException(nve);
+            throw;
+        }
     }
 }
