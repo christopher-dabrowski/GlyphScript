@@ -4,10 +4,26 @@ using Antlr4.Runtime.Tree;
 
 namespace GlyphScriptCompiler.SyntaxErrors;
 
-public class InvalidSyntaxException(ParserRuleContext context) : InvalidOperationException
+public class InvalidSyntaxException : InvalidOperationException
 {
-    public int Line { get; } = context.Start.Line;
-    public int Column { get; } = context.Start.Column;
+    private InvalidSyntaxException(IToken offendingToken)
+    {
+        Line = offendingToken.Line;
+        Column = offendingToken.Column;
+    }
+
+    public InvalidSyntaxException(ParserRuleContext context)
+        : this(context.Start)
+    {
+    }
+
+    public InvalidSyntaxException(NoViableAltException noViableAltException)
+        : this(noViableAltException.OffendingToken)
+    {
+    }
+
+    public int Line { get; }
+    public int Column { get; }
 
     public virtual string Reason => "Syntax error";
 
