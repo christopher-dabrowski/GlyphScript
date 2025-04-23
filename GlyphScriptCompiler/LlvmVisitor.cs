@@ -4,7 +4,7 @@ using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 
-public enum TypeKind
+public enum GlyphScriptType
 {
     Int,
     Long,
@@ -18,7 +18,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public LLVMModuleRef LlvmModule { get; }
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
 
-    private readonly Dictionary<string, (LLVMValueRef Value, TypeKind Type)> _variables = [];
+    private readonly Dictionary<string, (LLVMValueRef Value, GlyphScriptType Type)> _variables = [];
     private int _stringConstCounter = 0;
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
@@ -117,11 +117,11 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var valueKind = LLVM.GetTypeKind(valueType);
         var printfFormatStr = valueKind switch
         {
-            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 32 => GetPrintfFormatString(TypeKind.Int),
-            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 64 => GetPrintfFormatString(TypeKind.Long),
-            LLVMTypeKind.LLVMFloatTypeKind => GetPrintfFormatString(TypeKind.Float),
-            LLVMTypeKind.LLVMDoubleTypeKind => GetPrintfFormatString(TypeKind.Double),
-            LLVMTypeKind.LLVMPointerTypeKind => GetPrintfFormatString(TypeKind.String),
+            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 32 => GetPrintfFormatString(GlyphScriptType.Int),
+            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 64 => GetPrintfFormatString(GlyphScriptType.Long),
+            LLVMTypeKind.LLVMFloatTypeKind => GetPrintfFormatString(GlyphScriptType.Float),
+            LLVMTypeKind.LLVMDoubleTypeKind => GetPrintfFormatString(GlyphScriptType.Double),
+            LLVMTypeKind.LLVMPointerTypeKind => GetPrintfFormatString(GlyphScriptType.String),
             _ => throw new InvalidOperationException($"Unsupported type for printing: {valueKind}")
         };
 
@@ -406,36 +406,36 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return LLVM.BuildLoad(_llvmBuilder, variable.Value, id);
     }
 
-    private static TypeKind GetTypeFromImmediateValue(GlyphScriptParser.ImmediateValueContext context)
+    private static GlyphScriptType GetTypeFromImmediateValue(GlyphScriptParser.ImmediateValueContext context)
     {
-        if (context.INT_LITERAL() != null) return TypeKind.Int;
-        if (context.LONG_LITERAL() != null) return TypeKind.Long;
-        if (context.FLOAT_LITERAL() != null) return TypeKind.Float;
-        if (context.DOUBLE_LITERAL() != null) return TypeKind.Double;
-        if (context.STRING_LITERAL() != null) return TypeKind.String;
+        if (context.INT_LITERAL() != null) return GlyphScriptType.Int;
+        if (context.LONG_LITERAL() != null) return GlyphScriptType.Long;
+        if (context.FLOAT_LITERAL() != null) return GlyphScriptType.Float;
+        if (context.DOUBLE_LITERAL() != null) return GlyphScriptType.Double;
+        if (context.STRING_LITERAL() != null) return GlyphScriptType.String;
         throw new InvalidOperationException("Invalid immediate value");
     }
 
-    private static TypeKind GetTypeFromContext(GlyphScriptParser.TypeContext context)
+    private static GlyphScriptType GetTypeFromContext(GlyphScriptParser.TypeContext context)
     {
-        if (context.INT() != null) return TypeKind.Int;
-        if (context.LONG() != null) return TypeKind.Long;
-        if (context.FLOAT() != null) return TypeKind.Float;
-        if (context.DOUBLE() != null) return TypeKind.Double;
-        if (context.STRING_TYPE() != null) return TypeKind.String;
+        if (context.INT() != null) return GlyphScriptType.Int;
+        if (context.LONG() != null) return GlyphScriptType.Long;
+        if (context.FLOAT() != null) return GlyphScriptType.Float;
+        if (context.DOUBLE() != null) return GlyphScriptType.Double;
+        if (context.STRING_TYPE() != null) return GlyphScriptType.String;
         throw new InvalidOperationException("Invalid type");
     }
 
-    private static LLVMTypeRef GetLlvmType(TypeKind type)
+    private static LLVMTypeRef GetLlvmType(GlyphScriptType glyphScriptType)
     {
-        return type switch
+        return glyphScriptType switch
         {
-            TypeKind.Int => LLVM.Int32Type(),
-            TypeKind.Long => LLVM.Int64Type(),
-            TypeKind.Float => LLVM.FloatType(),
-            TypeKind.Double => LLVM.DoubleType(),
-            TypeKind.String => LLVM.PointerType(LLVM.Int8Type(), 0),
-            _ => throw new InvalidOperationException($"Unsupported type: {type}")
+            GlyphScriptType.Int => LLVM.Int32Type(),
+            GlyphScriptType.Long => LLVM.Int64Type(),
+            GlyphScriptType.Float => LLVM.FloatType(),
+            GlyphScriptType.Double => LLVM.DoubleType(),
+            GlyphScriptType.String => LLVM.PointerType(LLVM.Int8Type(), 0),
+            _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
     }
 
@@ -466,29 +466,29 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         LLVM.AddFunction(module, "scanf", scanfType);
     }
 
-    private LLVMValueRef GetPrintfFormatString(TypeKind type)
+    private LLVMValueRef GetPrintfFormatString(GlyphScriptType glyphScriptType)
     {
-        return type switch
+        return glyphScriptType switch
         {
-            TypeKind.Int => LLVM.GetNamedGlobal(LlvmModule, "strp_int"),
-            TypeKind.Long => LLVM.GetNamedGlobal(LlvmModule, "strp_long"),
-            TypeKind.Float => LLVM.GetNamedGlobal(LlvmModule, "strp_float"),
-            TypeKind.Double => LLVM.GetNamedGlobal(LlvmModule, "strp_double"),
-            TypeKind.String => LLVM.GetNamedGlobal(LlvmModule, "strp_string"),
-            _ => throw new InvalidOperationException($"Unsupported type for printf: {type}")
+            GlyphScriptType.Int => LLVM.GetNamedGlobal(LlvmModule, "strp_int"),
+            GlyphScriptType.Long => LLVM.GetNamedGlobal(LlvmModule, "strp_long"),
+            GlyphScriptType.Float => LLVM.GetNamedGlobal(LlvmModule, "strp_float"),
+            GlyphScriptType.Double => LLVM.GetNamedGlobal(LlvmModule, "strp_double"),
+            GlyphScriptType.String => LLVM.GetNamedGlobal(LlvmModule, "strp_string"),
+            _ => throw new InvalidOperationException($"Unsupported type for printf: {glyphScriptType}")
         };
     }
 
-    private LLVMValueRef GetScanfFormatString(TypeKind type)
+    private LLVMValueRef GetScanfFormatString(GlyphScriptType glyphScriptType)
     {
-        return type switch
+        return glyphScriptType switch
         {
-            TypeKind.Int => LLVM.GetNamedGlobal(LlvmModule, "strs_int"),
-            TypeKind.Long => LLVM.GetNamedGlobal(LlvmModule, "strs_long"),
-            TypeKind.Float => LLVM.GetNamedGlobal(LlvmModule, "strs_float"),
-            TypeKind.Double => LLVM.GetNamedGlobal(LlvmModule, "strs_double"),
-            TypeKind.String => LLVM.GetNamedGlobal(LlvmModule, "strs_string"),
-            _ => throw new InvalidOperationException($"Unsupported type for scanf: {type}")
+            GlyphScriptType.Int => LLVM.GetNamedGlobal(LlvmModule, "strs_int"),
+            GlyphScriptType.Long => LLVM.GetNamedGlobal(LlvmModule, "strs_long"),
+            GlyphScriptType.Float => LLVM.GetNamedGlobal(LlvmModule, "strs_float"),
+            GlyphScriptType.Double => LLVM.GetNamedGlobal(LlvmModule, "strs_double"),
+            GlyphScriptType.String => LLVM.GetNamedGlobal(LlvmModule, "strs_string"),
+            _ => throw new InvalidOperationException($"Unsupported type for scanf: {glyphScriptType}")
         };
     }
 
@@ -548,16 +548,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             LLVM.GetEnumAttributeKindForName(name, name.Length), 0);
     }
 
-    private static LLVMValueRef GetDefaultValueForType(TypeKind type)
+    private static LLVMValueRef GetDefaultValueForType(GlyphScriptType glyphScriptType)
     {
-        return type switch
+        return glyphScriptType switch
         {
-            TypeKind.Int => LLVM.ConstInt(LLVM.Int32Type(), 0, false),
-            TypeKind.Long => LLVM.ConstInt(LLVM.Int64Type(), 0, false),
-            TypeKind.Float => LLVM.ConstReal(LLVM.FloatType(), 0.0f),
-            TypeKind.Double => LLVM.ConstReal(LLVM.DoubleType(), 0.0),
-            TypeKind.String => LLVM.ConstPointerNull(LLVM.PointerType(LLVM.Int8Type(), 0)), // Default empty string
-            _ => throw new InvalidOperationException($"Unsupported type: {type}")
+            GlyphScriptType.Int => LLVM.ConstInt(LLVM.Int32Type(), 0, false),
+            GlyphScriptType.Long => LLVM.ConstInt(LLVM.Int64Type(), 0, false),
+            GlyphScriptType.Float => LLVM.ConstReal(LLVM.FloatType(), 0.0f),
+            GlyphScriptType.Double => LLVM.ConstReal(LLVM.DoubleType(), 0.0),
+            GlyphScriptType.String => LLVM.ConstPointerNull(LLVM.PointerType(LLVM.Int8Type(), 0)), // Default empty string
+            _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
     }
 
