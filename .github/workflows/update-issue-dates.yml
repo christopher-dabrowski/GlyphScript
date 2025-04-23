@@ -1,0 +1,148 @@
+name: Update Issue Dates in Project
+
+on:
+  issues:
+    types: [opened, reopened, closed]
+
+jobs:
+  update-project-dates:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      project: write
+
+    steps:
+      - name: Update Project Fields
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issueNodeId = context.payload.issue.node_id;
+            const now = new Date().toISOString();
+            const action = context.payload.action;
+
+            // Project configuration
+            const projectNumber = 4;
+            const startDateFieldName = 'Start date';
+            const endDateFieldName = 'End date';
+
+            async function getProjectData() {
+              // Get project ID - For user projects
+              const projectQuery = `
+                query($username: String!, $projectNumber: Int!) {
+                  user(login: $username) {
+                    projectV2(number: $projectNumber) {
+                      id
+                      fields(first: 20) {
+                        nodes {
+                          ... on ProjectV2Field {
+                            id
+                            name
+                          }
+                          ... on ProjectV2IterationField {
+                            id
+                            name
+                          }
+                          ... on ProjectV2SingleSelectField {
+                            id
+                            name
+                          }
+                          ... on ProjectV2DateField {
+                            id
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`;
+
+              const username = context.repo.owner;
+              const projectResponse = await github.graphql(projectQuery, {
+                username: username,
+                projectNumber: projectNumber
+              });
+
+              // Find the right field IDs
+              const fields = projectResponse.user.projectV2.fields.nodes;
+              const projectId = projectResponse.user.projectV2.id;
+              const startDateFieldId = fields.find(field => field.name === startDateFieldName)?.id;
+              const endDateFieldId = fields.find(field => field.name === endDateFieldName)?.id;
+
+              // Get item ID in project
+              const itemQuery = `
+                query($projectId: ID!, $issueNodeId: ID!) {
+                  node(id: $projectId) {
+                    ... on ProjectV2 {
+                      items(first: 1, filter: {contentNodeId: $issueNodeId}) {
+                        nodes {
+                          id
+                        }
+                      }
+                    }
+                  }
+                }`;
+
+              const itemResponse = await github.graphql(itemQuery, {
+                projectId: projectId,
+                issueNodeId: issueNodeId
+              });
+
+              const items = itemResponse.node.items.nodes;
+              if (items.length === 0) {
+                console.log("Issue not found in project");
+                return null;
+              }
+
+              return {
+                projectId,
+                itemId: items[0].id,
+                startDateFieldId,
+                endDateFieldId
+              };
+            }
+
+            async function updateProjectField(projectData, fieldId, value) {
+              if (!fieldId) {
+                console.log(`Field not found in project`);
+                return;
+              }
+
+              // Update field value
+              const mutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: { date: $value }
+                  }) {
+                    clientMutationId
+                  }
+                }`;
+
+              await github.graphql(mutation, {
+                projectId: projectData.projectId,
+                itemId: projectData.itemId,
+                fieldId: fieldId,
+                value: value
+              });
+
+              console.log(`Updated field successfully`);
+            }
+
+            // Main execution
+            try {
+              const projectData = await getProjectData();
+              if (!projectData) return;
+
+              if (action === 'opened' || action === 'reopened') {
+                // Update start date when issue is opened or reopened
+                await updateProjectField(projectData, projectData.startDateFieldId, now);
+              } else if (action === 'closed') {
+                // Update end date when issue is closed
+                await updateProjectField(projectData, projectData.endDateFieldId, now);
+              }
+            } catch (error) {
+              console.error(`Error updating project field: ${error}`);
+            }
