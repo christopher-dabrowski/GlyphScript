@@ -14,7 +14,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
-    private readonly ExpressionResultTypeEngine _expressionResultTypeEngine = new ();
+    private readonly ExpressionResultTypeEngine _expressionResultTypeEngine = new();
 
     private readonly Dictionary<string, GlyphScriptValue> _variables = [];
     private int _stringConstCounter = 0;
@@ -66,22 +66,27 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
 
-        var value = (LLVMValueRef)(Visit(context.expression()) ??
-            throw new InvalidOperationException("Failed to create expression"));
+        var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to create expression");
 
         if (_variables.ContainsKey(id))
             throw new DuplicateVariableDeclarationException(context) { VariableName = id };
 
+        // Check if the types are compatible for assignment
+        if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(type, expressionValue.Type))
+        {
+            throw new AssignmentOfInvalidTypeException(context)
+            {
+                VariableName = id,
+                VariableGlyphScriptType = type,
+                ValueGlyphScriptType = expressionValue.Type
+            };
+        }
+
         var llvmType = GetLlvmType(type);
         var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
 
-        var valueTypeKind = LLVM.GetTypeKind(LLVM.TypeOf(value));
-        if (valueTypeKind != LLVM.GetTypeKind(llvmType))
-        {
-            throw new InvalidOperationException($"Type mismatch in declaration of variable '{id}'");
-        }
-
-        LLVM.BuildStore(_llvmBuilder, value, variable);
+        LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable);
 
         _variables[id] = new GlyphScriptValue(variable, type);
         return null;
@@ -90,38 +95,36 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public override object? VisitAssignment(GlyphScriptParser.AssignmentContext context)
     {
         var id = context.ID().GetText();
-        var value = (LLVMValueRef)(Visit(context.expression()) ??
-            throw new InvalidOperationException("Failed to create expression"));
+        var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to create expression");
 
         if (!_variables.TryGetValue(id, out var variable))
             throw new UndefinedVariableUsageException(context) { VariableName = id };
 
-        var llvmType = GetLlvmType(variable.Type);
-        if (LLVM.GetTypeKind(LLVM.TypeOf(value)) != LLVM.GetTypeKind(llvmType))
+        // Check if the types are compatible for assignment
+        if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(variable.Type, expressionValue.Type))
         {
-            throw new InvalidOperationException($"Type mismatch in assignment to variable '{id}'");
+            throw new AssignmentOfInvalidTypeException(context)
+            {
+                VariableName = id,
+                VariableGlyphScriptType = variable.Type,
+                ValueGlyphScriptType = expressionValue.Type
+            };
         }
 
-        LLVM.BuildStore(_llvmBuilder, value, variable.Value);
+        LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable.Value);
         return null;
     }
 
     public override object? VisitPrint(GlyphScriptParser.PrintContext context)
     {
-        var value = (LLVMValueRef)(Visit(context.expression()) ??
-            throw new InvalidOperationException("Failed to create expression"));
+        var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to create expression");
 
+        var value = expressionValue.Value;
         var valueType = LLVM.TypeOf(value);
         var valueKind = LLVM.GetTypeKind(valueType);
-        var printfFormatStr = valueKind switch
-        {
-            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 32 => GetPrintfFormatString(GlyphScriptType.Int),
-            LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 64 => GetPrintfFormatString(GlyphScriptType.Long),
-            LLVMTypeKind.LLVMFloatTypeKind => GetPrintfFormatString(GlyphScriptType.Float),
-            LLVMTypeKind.LLVMDoubleTypeKind => GetPrintfFormatString(GlyphScriptType.Double),
-            LLVMTypeKind.LLVMPointerTypeKind => GetPrintfFormatString(GlyphScriptType.String),
-            _ => throw new InvalidOperationException($"Unsupported type for printing: {valueKind}")
-        };
+        var printfFormatStr = GetPrintfFormatString(expressionValue.Type);
 
         var printfFunc = LLVM.GetNamedFunction(LlvmModule, "printf");
 
@@ -157,22 +160,22 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.INT_LITERAL() != null)
         {
             var value = int.Parse(context.INT_LITERAL().GetText());
-            return LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false);
+            return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false), GlyphScriptType.Int);
         }
         if (context.LONG_LITERAL() != null)
         {
             var value = long.Parse(context.LONG_LITERAL().GetText().TrimEnd('l', 'L'));
-            return LLVM.ConstInt(LLVM.Int64Type(), (ulong)value, false);
+            return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int64Type(), (ulong)value, false), GlyphScriptType.Long);
         }
         if (context.FLOAT_LITERAL() != null)
         {
             var value = float.Parse(context.FLOAT_LITERAL().GetText().TrimEnd('f', 'F'));
-            return LLVM.ConstReal(LLVM.FloatType(), value);
+            return new GlyphScriptValue(LLVM.ConstReal(LLVM.FloatType(), value), GlyphScriptType.Float);
         }
         if (context.DOUBLE_LITERAL() != null)
         {
             var value = double.Parse(context.DOUBLE_LITERAL().GetText().TrimEnd('d', 'D'));
-            return LLVM.ConstReal(LLVM.DoubleType(), value);
+            return new GlyphScriptValue(LLVM.ConstReal(LLVM.DoubleType(), value), GlyphScriptType.Double);
         }
         if (context.STRING_LITERAL() != null)
         {
@@ -185,7 +188,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             var stringGlobal = CreateStringConstant(LlvmModule, stringConstName, value);
 
             // Return the pointer to the string
-            return GetStringPtr(_llvmBuilder, stringGlobal);
+            return new GlyphScriptValue(GetStringPtr(_llvmBuilder, stringGlobal), GlyphScriptType.String);
         }
         throw new InvalidOperationException("Invalid immediate value");
     }
@@ -197,8 +200,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitMulDivExp(GlyphScriptParser.MulDivExpContext context)
     {
-        var left = (LLVMValueRef)(Visit(context.expression(0)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
-        var right = (LLVMValueRef)(Visit(context.expression(1)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+        var leftValue = Visit(context.expression(0)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the left expression");
+        var rightValue = Visit(context.expression(1)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the right expression");
+
+        var left = leftValue.Value;
+        var right = rightValue.Value;
+
+        // Use the type engine to determine the result type
+        var resultType = context.MULTIPLICATION_SYMBOL() != null
+            ? _expressionResultTypeEngine.GetMultiplicationResultType(context, leftValue.Type, rightValue.Type)
+            : _expressionResultTypeEngine.GetDivisionResultType(context, leftValue.Type, rightValue.Type);
 
         var leftType = LLVM.TypeOf(left);
         var rightType = LLVM.TypeOf(right);
@@ -221,10 +232,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
                     right = LLVM.BuildSExt(_llvmBuilder, right, LLVM.Int64Type(), "sext_to_long");
                     rightType = LLVM.Int64Type();
                 }
-                else
-                {
-                    throw new InvalidOperationException("Unsupported integer width combination in multiplication/division operation");
-                }
             }
         }
         else if (leftKind != rightKind)
@@ -239,27 +246,32 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
                 right = LLVM.BuildSIToFP(_llvmBuilder, right, leftType, "promote_to_float");
                 rightType = leftType;
             }
-            else
-            {
-                throw new InvalidOperationException("Type mismatch in multiplication/division operation");
-            }
         }
 
         var isFloatingPoint = LLVM.GetTypeKind(leftType) is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind;
+        var llvmValue = context.MULTIPLICATION_SYMBOL() != null
+                ? (isFloatingPoint
+                    ? LLVM.BuildFMul(_llvmBuilder, left, right, "fmul")
+                    : LLVM.BuildMul(_llvmBuilder, left, right, "mul"))
+                : (isFloatingPoint
+                    ? LLVM.BuildFDiv(_llvmBuilder, left, right, "fdiv")
+                    : LLVM.BuildSDiv(_llvmBuilder, left, right, "div"));
 
-        return context.MULTIPLICATION_SYMBOL() != null
-            ? (isFloatingPoint
-                ? LLVM.BuildFMul(_llvmBuilder, left, right, "fmul")
-                : LLVM.BuildMul(_llvmBuilder, left, right, "mul"))
-            : (isFloatingPoint
-                ? LLVM.BuildFDiv(_llvmBuilder, left, right, "fdiv")
-                : LLVM.BuildSDiv(_llvmBuilder, left, right, "div"));
+        return new GlyphScriptValue(llvmValue, resultType);
     }
 
     public override object? VisitAddSubExp(GlyphScriptParser.AddSubExpContext context)
     {
-        var left = (LLVMValueRef)(Visit(context.expression(0)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
-        var right = (LLVMValueRef)(Visit(context.expression(1)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+        var leftValue = Visit(context.expression(0)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the left expression");
+        var rightValue = Visit(context.expression(1)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the right expression");
+
+        var left = leftValue.Value;
+        var right = rightValue.Value;
+
+        // Use the type engine to determine the result type
+        var resultType = context.ADDITION_SYMBOL() != null
+            ? _expressionResultTypeEngine.GetAdditionResultType(context, leftValue.Type, rightValue.Type)
+            : _expressionResultTypeEngine.GetSubtractionResultType(context, leftValue.Type, rightValue.Type);
 
         var leftType = LLVM.TypeOf(left);
         var rightType = LLVM.TypeOf(right);
@@ -301,6 +313,13 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
                 right = LLVM.BuildSIToFP(_llvmBuilder, right, leftType, "promote_to_float");
                 rightType = leftType;
             }
+            else if (leftKind == LLVMTypeKind.LLVMPointerTypeKind && rightKind == LLVMTypeKind.LLVMPointerTypeKind &&
+                     leftValue.Type == GlyphScriptType.String && rightValue.Type == GlyphScriptType.String &&
+                     context.ADDITION_SYMBOL() != null)
+            {
+                // String concatenation case - to be implemented
+                throw new NotImplementedException("String concatenation is not implemented yet");
+            }
             else
             {
                 throw new InvalidOperationException("Type mismatch in addition/subtraction operation");
@@ -309,19 +328,27 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var isFloatingPoint = LLVM.GetTypeKind(leftType) is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind;
 
-        return context.ADDITION_SYMBOL() != null
+        var llvmValue = context.ADDITION_SYMBOL() != null
             ? (isFloatingPoint
                 ? LLVM.BuildFAdd(_llvmBuilder, left, right, "fadd")
                 : LLVM.BuildAdd(_llvmBuilder, left, right, "add"))
             : (isFloatingPoint
                 ? LLVM.BuildFSub(_llvmBuilder, left, right, "fsub")
                 : LLVM.BuildSub(_llvmBuilder, left, right, "sub"));
+
+        return new GlyphScriptValue(llvmValue, resultType);
     }
 
     public override object? VisitPowerExp(GlyphScriptParser.PowerExpContext context)
     {
-        var left = (LLVMValueRef)(Visit(context.expression(0)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
-        var right = (LLVMValueRef)(Visit(context.expression(1)) ?? throw new InvalidOperationException("Unable to resolve the expression"));
+        var leftValue = Visit(context.expression(0)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the left expression");
+        var rightValue = Visit(context.expression(1)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the right expression");
+
+        var left = leftValue.Value;
+        var right = rightValue.Value;
+
+        // Use the type engine to determine the result type
+        var resultType = _expressionResultTypeEngine.GetPowerResultType(context, leftValue.Type, rightValue.Type);
 
         var leftType = LLVM.TypeOf(left);
         var rightType = LLVM.TypeOf(right);
@@ -385,7 +412,9 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             right = LLVM.BuildSIToFP(_llvmBuilder, right, LLVM.DoubleType(), "to_double");
         }
 
-        return LLVM.BuildCall(_llvmBuilder, powFunc, [left, right], "pow");
+        return new GlyphScriptValue(
+            LLVM.BuildCall(_llvmBuilder, powFunc, [left, right], "pow"),
+            resultType);
     }
 
     public override object? VisitValueExp(GlyphScriptParser.ValueExpContext context)
@@ -401,7 +430,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             throw new InvalidOperationException($"Variable '{id}' is not defined.");
         }
 
-        return LLVM.BuildLoad(_llvmBuilder, variable.Value, id);
+        return new GlyphScriptValue(LLVM.BuildLoad(_llvmBuilder, variable.Value, id), variable.Type);
     }
 
     private static GlyphScriptType GetTypeFromImmediateValue(GlyphScriptParser.ImmediateValueContext context)
