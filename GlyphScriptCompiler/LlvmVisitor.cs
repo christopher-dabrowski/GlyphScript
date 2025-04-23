@@ -193,7 +193,29 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var leftKind = LLVM.GetTypeKind(leftType);
         var rightKind = LLVM.GetTypeKind(rightType);
 
-        if (leftKind != rightKind)
+        if (leftKind == LLVMTypeKind.LLVMIntegerTypeKind && rightKind == LLVMTypeKind.LLVMIntegerTypeKind)
+        {
+            var leftWidth = LLVM.GetIntTypeWidth(leftType);
+            var rightWidth = LLVM.GetIntTypeWidth(rightType);
+            if (leftWidth != rightWidth)
+            {
+                if (leftWidth == 32 && rightWidth == 64)
+                {
+                    left = LLVM.BuildSExt(_llvmBuilder, left, LLVM.Int64Type(), "sext_to_long");
+                    leftType = LLVM.Int64Type();
+                }
+                else if (leftWidth == 64 && rightWidth == 32)
+                {
+                    right = LLVM.BuildSExt(_llvmBuilder, right, LLVM.Int64Type(), "sext_to_long");
+                    rightType = LLVM.Int64Type();
+                }
+                else
+                {
+                    throw new InvalidOperationException("Unsupported integer width combination in multiplication/division operation");
+                }
+            }
+        }
+        else if (leftKind != rightKind)
         {
             if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
             {
@@ -232,7 +254,30 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var leftKind = LLVM.GetTypeKind(leftType);
         var rightKind = LLVM.GetTypeKind(rightType);
 
-        if (leftKind != rightKind)
+        // Handle int/long promotion
+        if (leftKind == LLVMTypeKind.LLVMIntegerTypeKind && rightKind == LLVMTypeKind.LLVMIntegerTypeKind)
+        {
+            var leftWidth = LLVM.GetIntTypeWidth(leftType);
+            var rightWidth = LLVM.GetIntTypeWidth(rightType);
+            if (leftWidth != rightWidth)
+            {
+                if (leftWidth == 32 && rightWidth == 64)
+                {
+                    left = LLVM.BuildSExt(_llvmBuilder, left, LLVM.Int64Type(), "sext_to_long");
+                    leftType = LLVM.Int64Type();
+                }
+                else if (leftWidth == 64 && rightWidth == 32)
+                {
+                    right = LLVM.BuildSExt(_llvmBuilder, right, LLVM.Int64Type(), "sext_to_long");
+                    rightType = LLVM.Int64Type();
+                }
+                else
+                {
+                    throw new InvalidOperationException("Unsupported integer width combination in addition/subtraction operation");
+                }
+            }
+        }
+        else if (leftKind != rightKind)
         {
             if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
             {
@@ -271,8 +316,30 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var leftKind = LLVM.GetTypeKind(leftType);
         var rightKind = LLVM.GetTypeKind(rightType);
 
-        // Handle type promotion
-        if (leftKind != rightKind)
+        // Handle int/long promotion
+        if (leftKind == LLVMTypeKind.LLVMIntegerTypeKind && rightKind == LLVMTypeKind.LLVMIntegerTypeKind)
+        {
+            var leftWidth = LLVM.GetIntTypeWidth(leftType);
+            var rightWidth = LLVM.GetIntTypeWidth(rightType);
+            if (leftWidth != rightWidth)
+            {
+                if (leftWidth == 32 && rightWidth == 64)
+                {
+                    left = LLVM.BuildSExt(_llvmBuilder, left, LLVM.Int64Type(), "sext_to_long");
+                    leftType = LLVM.Int64Type();
+                }
+                else if (leftWidth == 64 && rightWidth == 32)
+                {
+                    right = LLVM.BuildSExt(_llvmBuilder, right, LLVM.Int64Type(), "sext_to_long");
+                    rightType = LLVM.Int64Type();
+                }
+                else
+                {
+                    throw new InvalidOperationException("Unsupported integer width combination in power operation");
+                }
+            }
+        }
+        else if (leftKind != rightKind)
         {
             if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
             {
