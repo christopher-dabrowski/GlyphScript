@@ -2,7 +2,7 @@ using Antlr4.Runtime;
 
 namespace GlyphScriptCompiler.SyntaxErrors;
 
-public sealed class AssignemntOfInvalidTypeException(ParserRuleContext context)
+public sealed class AssignmentOfInvalidTypeException(ParserRuleContext context)
     : InvalidSyntaxException(context)
 {
     public required string VariableName { get; init; }
