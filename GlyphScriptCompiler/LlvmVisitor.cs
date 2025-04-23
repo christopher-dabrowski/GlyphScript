@@ -4,15 +4,6 @@ using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 
-public enum GlyphScriptType
-{
-    Int,
-    Long,
-    Float,
-    Double,
-    String
-}
-
 public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
