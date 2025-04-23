@@ -51,3 +51,21 @@ Przy generowaniu szkieletu kompilatora podawane są flagi `-visitor` oraz `-no-l
 Widać to w pliku [Makefile](Makefile), w targecie _generateCompiler_.
 
 Implementując kompilator w klasie [LlvmVisitor](GlyphScriptCompiler/LlvmVisitor.cs) bezpośrednio sterujemy przechodzeniem drzewa AST.
+
+### Kolejność Wyrażeń Bez Poziomu Zasad Parsowania
+
+#### Kontekst
+
+Do uzyskania poprawnej kolejności wykonywania wyrażeń arytmetycznych potrzebne jest przypisanie priorytetów operatorom.
+W przykładowym języku [LangX](https://github.com/sawickib/LangX/blob/main/realcalc/LangX.g4) z zadeklarowaniem dodatkowych zasad parsowania, by osiągnąć poprawną kolejność wykonywania wyrażeń arytmetycznych.
+
+#### Decyzja
+
+W projekcie zastosowano podejście bez dodatkowych zasad parsowania.
+Współczesne wersje ANTLR umożliwiają obsługę operatorów o różnym priorytecie bez dodatkowych zasad parsowania, co zostało opisane w materiale [The ANTLR Mega Tutorial](https://tomassetti.me/antlr-mega-tutorial/#chapter52) w części _28. Dealing with Expressions_.
+
+#### Wpływ
+
+Nie jest potrzebne dodawanie dodatkowych zasad parsowania do gramatyki.
+Kolejność operatorów jest ustalana na podstawie kolejności alternatyw w gramatyce.
+Upraszcza to zdecydowanie czytelność [gramatyki GlyphScript](GlyphScript.g4).
