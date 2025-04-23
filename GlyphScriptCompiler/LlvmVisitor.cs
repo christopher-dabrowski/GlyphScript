@@ -9,7 +9,8 @@ public enum TypeKind
     Int,
     Long,
     Float,
-    Double
+    Double,
+    String
 }
 
 public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
@@ -18,6 +19,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
 
     private readonly Dictionary<string, (LLVMValueRef Value, TypeKind Type)> _variables = [];
+    private int _stringConstCounter = 0;
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
     {
@@ -70,9 +72,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             throw new InvalidOperationException("Failed to create expression"));
 
         if (_variables.ContainsKey(id))
-        {
-            throw new InvalidOperationException($"Variable '{id}' is already defined.");
-        }
+            throw new DuplicateVariableDeclarationException(context) { VariableName = id };
 
         var llvmType = GetLlvmType(type);
         var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
@@ -121,6 +121,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             LLVMTypeKind.LLVMIntegerTypeKind when LLVM.GetIntTypeWidth(valueType) == 64 => GetPrintfFormatString(TypeKind.Long),
             LLVMTypeKind.LLVMFloatTypeKind => GetPrintfFormatString(TypeKind.Float),
             LLVMTypeKind.LLVMDoubleTypeKind => GetPrintfFormatString(TypeKind.Double),
+            LLVMTypeKind.LLVMPointerTypeKind => GetPrintfFormatString(TypeKind.String),
             _ => throw new InvalidOperationException($"Unsupported type for printing: {valueKind}")
         };
 
@@ -174,6 +175,19 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         {
             var value = double.Parse(context.DOUBLE_LITERAL().GetText().TrimEnd('d', 'D'));
             return LLVM.ConstReal(LLVM.DoubleType(), value);
+        }
+        if (context.STRING_LITERAL() != null)
+        {
+            // Extract the string content by removing quotes
+            var text = context.STRING_LITERAL().GetText();
+            var value = text.Substring(1, text.Length - 2); // Remove quotes
+
+            // Create a unique name for the string constant
+            var stringConstName = $"str_{_stringConstCounter++}";
+            var stringGlobal = CreateStringConstant(LlvmModule, stringConstName, value);
+
+            // Return the pointer to the string
+            return GetStringPtr(_llvmBuilder, stringGlobal);
         }
         throw new InvalidOperationException("Invalid immediate value");
     }
@@ -398,6 +412,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.LONG_LITERAL() != null) return TypeKind.Long;
         if (context.FLOAT_LITERAL() != null) return TypeKind.Float;
         if (context.DOUBLE_LITERAL() != null) return TypeKind.Double;
+        if (context.STRING_LITERAL() != null) return TypeKind.String;
         throw new InvalidOperationException("Invalid immediate value");
     }
 
@@ -407,6 +422,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.LONG() != null) return TypeKind.Long;
         if (context.FLOAT() != null) return TypeKind.Float;
         if (context.DOUBLE() != null) return TypeKind.Double;
+        if (context.STRING_TYPE() != null) return TypeKind.String;
         throw new InvalidOperationException("Invalid type");
     }
 
@@ -418,6 +434,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             TypeKind.Long => LLVM.Int64Type(),
             TypeKind.Float => LLVM.FloatType(),
             TypeKind.Double => LLVM.DoubleType(),
+            TypeKind.String => LLVM.PointerType(LLVM.Int8Type(), 0),
             _ => throw new InvalidOperationException($"Unsupported type: {type}")
         };
     }
@@ -432,11 +449,13 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         CreateStringConstant(module, "strp_long", "%ld\n\0");
         CreateStringConstant(module, "strp_float", "%f\n\0");
         CreateStringConstant(module, "strp_double", "%lf\n\0");
+        CreateStringConstant(module, "strp_string", "%s\n\0");
 
         CreateStringConstant(module, "strs_int", "%d\0");
         CreateStringConstant(module, "strs_long", "%ld\0");
         CreateStringConstant(module, "strs_float", "%f\0");
         CreateStringConstant(module, "strs_double", "%lf\0");
+        CreateStringConstant(module, "strs_string", "%s\0");
 
         // Declare external functions (printf and scanf)
         LLVMTypeRef[] printfParamTypes = [i8PtrType];
@@ -455,6 +474,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             TypeKind.Long => LLVM.GetNamedGlobal(LlvmModule, "strp_long"),
             TypeKind.Float => LLVM.GetNamedGlobal(LlvmModule, "strp_float"),
             TypeKind.Double => LLVM.GetNamedGlobal(LlvmModule, "strp_double"),
+            TypeKind.String => LLVM.GetNamedGlobal(LlvmModule, "strp_string"),
             _ => throw new InvalidOperationException($"Unsupported type for printf: {type}")
         };
     }
@@ -467,6 +487,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             TypeKind.Long => LLVM.GetNamedGlobal(LlvmModule, "strs_long"),
             TypeKind.Float => LLVM.GetNamedGlobal(LlvmModule, "strs_float"),
             TypeKind.Double => LLVM.GetNamedGlobal(LlvmModule, "strs_double"),
+            TypeKind.String => LLVM.GetNamedGlobal(LlvmModule, "strs_string"),
             _ => throw new InvalidOperationException($"Unsupported type for scanf: {type}")
         };
     }
@@ -489,6 +510,10 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         string name,
         string value)
     {
+        var isNullTerminated = value.LastOrDefault() == '\0';
+        if (!isNullTerminated)
+            value += '\0';
+
         var bytes = System.Text.Encoding.UTF8.GetBytes(value);
         var length = (uint)bytes.Length;
 
@@ -531,6 +556,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             TypeKind.Long => LLVM.ConstInt(LLVM.Int64Type(), 0, false),
             TypeKind.Float => LLVM.ConstReal(LLVM.FloatType(), 0.0f),
             TypeKind.Double => LLVM.ConstReal(LLVM.DoubleType(), 0.0),
+            TypeKind.String => LLVM.ConstPointerNull(LLVM.PointerType(LLVM.Int8Type(), 0)), // Default empty string
             _ => throw new InvalidOperationException($"Unsupported type: {type}")
         };
     }
