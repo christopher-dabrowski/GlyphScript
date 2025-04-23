@@ -25,7 +25,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidVariableDeclaration()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("invalidDeclaration.gs", "");
         });
@@ -34,7 +34,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidExpression()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("invalidExpression.gs", "");
         });
@@ -43,7 +43,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidAssignment()
     {
-        var exception = await Assert.ThrowsAsync<UndefinedVariableUsageException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<UndefinedVariableUsageException>(async () =>
         {
             await RunProgram("invalidAssignment.gs", "");
         });
@@ -56,7 +56,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidPrintStatement()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("invalidPrint.gs", "");
         });
@@ -65,7 +65,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidReadStatement()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("invalidRead.gs", "");
         });
@@ -74,7 +74,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectUnmatchedParentheses()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("unmatchedParentheses.gs", "");
         });
@@ -83,7 +83,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidOperatorUsage()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("invalidOperator.gs", "");
         });
@@ -92,7 +92,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidTypeConversion()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("invalidTypeConversion.gs", "");
         });
@@ -101,7 +101,7 @@ public class SyntaxErrorTests : IDisposable
     [Fact]
     public async Task ShouldDetectInvalidIdentifier()
     {
-        var exception = await Assert.ThrowsAsync<InvalidSyntaxException>(async () =>
+        var exception = await Assert.ThrowsAnyAsync<InvalidSyntaxException>(async () =>
         {
             await RunProgram("invalidIdentifier.gs", "");
         });
