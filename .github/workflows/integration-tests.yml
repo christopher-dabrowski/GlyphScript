@@ -11,12 +11,7 @@ on:
       - GlyphScriptCompiler/**
       - GlyphScriptCompiler.IntegrationTests/**
       - Dockerfile.test
-  pull_request:
-    branches: [main]
-    paths:
-      - GlyphScriptCompiler/**
-      - GlyphScriptCompiler.IntegrationTests/**
-      - Dockerfile.test
+      - .github/workflows/integration-tests.yml
   workflow_dispatch:
 
 jobs:
