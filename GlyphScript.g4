@@ -53,6 +53,7 @@ immediateValue
     | LONG_LITERAL
     | FLOAT_LITERAL
     | DOUBLE_LITERAL
+    | STRING_LITERAL
     ;
 
 type
@@ -60,6 +61,7 @@ type
     | LONG
     | FLOAT
     | DOUBLE
+    | STRING_TYPE
     ;
 
 COMMENT
@@ -82,6 +84,10 @@ DOUBLE
     : FLOAT_SYMBOL FLOAT_SYMBOL
     ;
 
+STRING_TYPE
+    : LETTERS_SYMBOL
+    ;
+
 FLOAT
     : FLOAT_SYMBOL
     ;
@@ -94,7 +100,7 @@ READ
     : KEYBOARD_EMOJI
     ;
 
-STRING
+STRING_LITERAL
     : '"' STRING_CHAR* '"'
     ;
 
@@ -206,4 +212,13 @@ fragment FLOAT_SYMBOL
     | '🔹'
     | ':large_blue_diamond:'
     | ':small_blue_diamond:'
+    ;
+
+fragment LETTERS_SYMBOL
+    : '🔤'
+    | ':abc:'
+    | '🔡'
+    | ':abcd:'
+    | '🔠'
+    | ':capital_abcd:'
     ;
