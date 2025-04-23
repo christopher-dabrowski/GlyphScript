@@ -4,12 +4,19 @@ using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 
+public record GlyphScriptValue
+(
+    LLVMValueRef Value,
+    GlyphScriptType Type
+);
+
 public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
+    private readonly ExpressionResultTypeEngine _expressionResultTypeEngine = new ();
 
-    private readonly Dictionary<string, (LLVMValueRef Value, GlyphScriptType Type)> _variables = [];
+    private readonly Dictionary<string, GlyphScriptValue> _variables = [];
     private int _stringConstCounter = 0;
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
@@ -50,7 +57,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         LLVM.BuildStore(_llvmBuilder, value, variable);
 
-        _variables[id] = (variable, type);
+        _variables[id] = new GlyphScriptValue(variable, type);
         return null;
     }
 
@@ -76,7 +83,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         LLVM.BuildStore(_llvmBuilder, value, variable);
 
-        _variables[id] = (variable, type);
+        _variables[id] = new GlyphScriptValue(variable, type);
         return null;
     }
 
