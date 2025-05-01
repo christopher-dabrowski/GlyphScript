@@ -111,8 +111,9 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         LLVM.BuildStore(_llvmBuilder, value, variable);
 
-        _variables[id] = new GlyphScriptValue(variable, type);
-        return null;
+        var result = new GlyphScriptValue(variable, type);
+        _variables[id] = result;
+        return result;
     }
 
     public override object? VisitInitializingDeclaration(GlyphScriptParser.InitializingDeclarationContext context)
@@ -142,8 +143,9 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable);
 
-        _variables[id] = new GlyphScriptValue(variable, type);
-        return null;
+        var result = new GlyphScriptValue(variable, type);
+        _variables[id] = result;
+        return result;
     }
 
     public override object? VisitAssignment(GlyphScriptParser.AssignmentContext context)
@@ -167,7 +169,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         }
 
         LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable.Value);
-        return null;
+        return expressionValue;
     }
 
     public override object? VisitPrint(GlyphScriptParser.PrintContext context)
@@ -188,8 +190,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var args = new[] { GetStringPtr(_llvmBuilder, printfFormatStr), value };
 
-        LLVM.BuildCall(_llvmBuilder, printfFunc, args, string.Empty);
-        return null;
+        var printfResult = LLVM.BuildCall(_llvmBuilder, printfFunc, args, "printf_call");
+        return expressionValue; // Return the expression value that was printed
     }
 
     public override object? VisitRead(GlyphScriptParser.ReadContext context)
@@ -198,15 +200,18 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         if (!_variables.TryGetValue(id, out var variable))
         {
-            throw new InvalidOperationException($"Variable '{id}' is not defined.");
+            throw new UndefinedVariableUsageException(context) { VariableName = id };
         }
 
         var scanfFormatStr = GetScanfFormatString(variable.Type);
         var scanfFunc = LLVM.GetNamedFunction(LlvmModule, "scanf");
 
         var args = new[] { GetStringPtr(_llvmBuilder, scanfFormatStr), variable.Value };
-        LLVM.BuildCall(_llvmBuilder, scanfFunc, args, string.Empty);
-        return null;
+        var scanfResult = LLVM.BuildCall(_llvmBuilder, scanfFunc, args, "scanf_call");
+        
+        // After reading, build a load to get the current value and return it
+        var loadedValue = LLVM.BuildLoad(_llvmBuilder, variable.Value, $"read_{id}");
+        return new GlyphScriptValue(loadedValue, variable.Type);
     }
 
     public override object? VisitImmediateValue(GlyphScriptParser.ImmediateValueContext context)
