@@ -10,6 +10,44 @@ public record GlyphScriptValue
     GlyphScriptType Type
 );
 
+public enum OperationKind
+{
+    Assignment,
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
+    Power,
+    Print,
+    Read,
+    DefaultValue
+}
+
+public record OperationSignature(
+    OperationKind Kind,
+    IReadOnlyList<GlyphScriptType> Parameters)
+{
+    public virtual bool Equals(OperationSignature? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Kind == other.Kind && Parameters.SequenceEqual(other.Parameters);
+    }
+
+    public override int GetHashCode()
+    {
+        var parametersHash = Parameters.Aggregate(0, HashCode.Combine);
+        return HashCode.Combine((int)Kind, parametersHash);
+    }
+}
+
+public delegate GlyphScriptValue? OperationImplementation(IReadOnlyList<GlyphScriptValue> parameters);
+
+public interface IOperationProvider
+{
+    IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations { get; }
+}
+
 public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
@@ -19,9 +57,25 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     private readonly Dictionary<string, GlyphScriptValue> _variables = [];
     private int _stringConstCounter = 0;
 
+    private Dictionary<OperationSignature, OperationImplementation> _availableOperations = new();
+
     public LlvmVisitor(LLVMModuleRef llvmModule)
     {
         LlvmModule = llvmModule;
+
+        IOperationProvider[] initialOperationProviders =
+        [
+            new IntegerOperations(llvmModule, _llvmBuilder)
+        ];
+
+        foreach (var provider in initialOperationProviders)
+            RegisterOperations(provider);
+    }
+
+    private void RegisterOperations(IOperationProvider provider)
+    {
+        foreach (var (operationSignature, implementation) in provider.Operations)
+            _availableOperations.Add(operationSignature, implementation);
     }
 
     public override object? VisitProgram(GlyphScriptParser.ProgramContext context)
@@ -193,10 +247,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         throw new InvalidOperationException("Invalid immediate value");
     }
 
-    public override object? VisitParenthesisExp(GlyphScriptParser.ParenthesisExpContext context)
-    {
-        return Visit(context.expression());
-    }
+    public override object? VisitParenthesisExp(GlyphScriptParser.ParenthesisExpContext context) =>
+        Visit(context.expression());
 
     public override object? VisitMulDivExp(GlyphScriptParser.MulDivExpContext context)
     {

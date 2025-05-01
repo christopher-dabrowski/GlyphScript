@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices.JavaScript;
 using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
 using GlyphScriptCompiler.Antlr;
@@ -27,7 +28,7 @@ public sealed class GlyphScriptLlvmCompiler
         var visitor = new LlvmVisitor(module);
         visitor.Visit(context);
 
-        return module;
+        return visitor.LlvmModule;
     }
 
     public void CompileToFile(string codeFilePath, string outputFilePath)
