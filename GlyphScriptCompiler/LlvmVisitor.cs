@@ -94,7 +94,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (_variables.ContainsKey(id))
             throw new DuplicateVariableDeclarationException(context) { VariableName = id };
 
-        // Check if the types are compatible for assignment
         if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(type, expressionValue.Type))
         {
             throw new AssignmentOfInvalidTypeException(context)
@@ -124,7 +123,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (!_variables.TryGetValue(id, out var variable))
             throw new UndefinedVariableUsageException(context) { VariableName = id };
 
-        // Check if the types are compatible for assignment
         if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(variable.Type, expressionValue.Type))
         {
             throw new AssignmentOfInvalidTypeException(context)
@@ -157,8 +155,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var args = new[] { GetStringPtr(_llvmBuilder, printfFormatStr), value };
 
-        var printfResult = LLVM.BuildCall(_llvmBuilder, printfFunc, args, "printf_call");
-        return expressionValue; // Return the expression value that was printed
+        LLVM.BuildCall(_llvmBuilder, printfFunc, args, "printf_call");
+        return null;
     }
 
     public override object? VisitRead(GlyphScriptParser.ReadContext context)
