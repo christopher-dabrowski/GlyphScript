@@ -1,5 +1,3 @@
-using GlyphScriptCompiler.Models;
-
 namespace GlyphScriptCompiler.SyntaxErrors;
 
 public sealed class AssignmentOfInvalidTypeException(ParserRuleContext context)

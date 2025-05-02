@@ -1,4 +1,3 @@
-using GlyphScriptCompiler.Models;
 using static GlyphScriptCompiler.Models.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;
@@ -129,6 +128,17 @@ public class FloatOperations : IOperationProvider
         return new GlyphScriptValue(floatResult, GlyphScriptType.Float);
     }
 
+    public GlyphScriptValue? ParseImmediateImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        var immediateValueContext = context as GlyphScriptParser.ImmediateValueContext
+            ?? throw new InvalidOperationException("Invalid context for parsing immediate value");
+        var rawValue = immediateValueContext.FLOAT_LITERAL()?.GetText()
+            ?? throw new InvalidOperationException("Invalid context for parsing float value");
+        
+        var value = float.Parse(rawValue.TrimEnd('F', 'f'));
+        return new GlyphScriptValue(LLVM.ConstReal(LLVM.FloatType(), value), GlyphScriptType.Float);
+    }
+
     private LLVMValueRef PromoteToFloat(GlyphScriptValue value)
     {
         return value.Type switch
@@ -156,6 +166,7 @@ public class FloatOperations : IOperationProvider
         new Dictionary<OperationSignature, OperationImplementation>
         {
             { new OperationSignature(DefaultValue, [GlyphScriptType.Float]), DefaultValueImplementation },
+            { new OperationSignature(ParseImmediate, [GlyphScriptType.Float]), ParseImmediateImplementation },
 
             // Float-Float operations
             { new OperationSignature(Addition, [GlyphScriptType.Float, GlyphScriptType.Float]), AdditionImplementation },
@@ -163,7 +174,7 @@ public class FloatOperations : IOperationProvider
             { new OperationSignature(Multiplication, [GlyphScriptType.Float, GlyphScriptType.Float]), MultiplicationImplementation },
             { new OperationSignature(Division, [GlyphScriptType.Float, GlyphScriptType.Float]), DivisionImplementation },
             { new OperationSignature(OperationKind.Power, [GlyphScriptType.Float, GlyphScriptType.Float]), PowerImplementation },
-
+            
             // Float-Int operations
             { new OperationSignature(Addition, [GlyphScriptType.Float, GlyphScriptType.Int]), AdditionImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.Int, GlyphScriptType.Float]), AdditionImplementation },

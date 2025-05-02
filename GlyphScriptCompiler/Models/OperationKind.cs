@@ -10,5 +10,6 @@ public enum OperationKind
     Power,
     Print,
     Read,
-    DefaultValue
+    DefaultValue,
+    ParseImmediate
 }

@@ -1,4 +1,3 @@
-using GlyphScriptCompiler.Models;
 using static GlyphScriptCompiler.Models.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;
@@ -89,6 +88,26 @@ public class StringOperations : IOperationProvider
         return new GlyphScriptValue(result, GlyphScriptType.String);
     }
 
+    public GlyphScriptValue? ParseImmediateImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        var immediateValueContext = context as GlyphScriptParser.ImmediateValueContext
+            ?? throw new InvalidOperationException("Invalid context for parsing immediate value");
+        var rawValue = immediateValueContext.STRING_LITERAL()?.GetText()
+            ?? throw new InvalidOperationException("Invalid context for parsing string value");
+
+        // Remove quotes and process escape sequences
+        if (rawValue.Length >= 2 && rawValue.StartsWith("\"") && rawValue.EndsWith("\""))
+        {
+            var value = rawValue.Substring(1, rawValue.Length - 2);
+            value = System.Text.RegularExpressions.Regex.Unescape(value);
+
+            var stringPtr = CreateStringConstant(_llvmModule, $"str_const_{_stringConstCounter++}", value);
+            return new GlyphScriptValue(GetStringPtr(_llvmBuilder, stringPtr), GlyphScriptType.String);
+        }
+
+        return null;
+    }
+
     private LLVMValueRef CreateStringConstant(string value)
     {
         var isNullTerminated = value.LastOrDefault() == '\0';
@@ -112,6 +131,28 @@ public class StringOperations : IOperationProvider
         return GetStringPtr(global);
     }
 
+    private LLVMValueRef CreateStringConstant(LLVMModuleRef module, string name, string value)
+    {
+        var isNullTerminated = value.LastOrDefault() == '\0';
+        if (!isNullTerminated)
+            value += '\0';
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        var length = (uint)bytes.Length;
+
+        var i8Type = LLVM.Int8Type();
+        var arrayType = LLVM.ArrayType(i8Type, length);
+
+        var global = LLVM.AddGlobal(module, arrayType, name);
+        LLVM.SetLinkage(global, LLVMLinkage.LLVMExternalLinkage);
+        LLVM.SetGlobalConstant(global, true);
+
+        var stringConstant = LLVM.ConstString(value, (uint)value.Length, true);
+        LLVM.SetInitializer(global, stringConstant);
+
+        return global;
+    }
+
     private LLVMValueRef GetStringPtr(LLVMValueRef stringGlobal)
     {
         LLVMValueRef[] indices =
@@ -123,10 +164,22 @@ public class StringOperations : IOperationProvider
         return LLVM.BuildGEP(_llvmBuilder, stringGlobal, indices, string.Empty);
     }
 
+    private LLVMValueRef GetStringPtr(LLVMBuilderRef builder, LLVMValueRef stringGlobal)
+    {
+        LLVMValueRef[] indices =
+        [
+            LLVM.ConstInt(LLVM.Int32Type(), 0, false),
+            LLVM.ConstInt(LLVM.Int32Type(), 0, false)
+        ];
+
+        return LLVM.BuildGEP(builder, stringGlobal, indices, string.Empty);
+    }
+
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>
         {
             { new OperationSignature(DefaultValue, [GlyphScriptType.String]), DefaultValueImplementation },
-            { new OperationSignature(Addition, [GlyphScriptType.String, GlyphScriptType.String]), AdditionImplementation }
+            { new OperationSignature(Addition, [GlyphScriptType.String, GlyphScriptType.String]), AdditionImplementation },
+            { new OperationSignature(ParseImmediate, [GlyphScriptType.String]), ParseImmediateImplementation }
         };
 }

@@ -1,5 +1,3 @@
-using GlyphScriptCompiler.Models;
-
 namespace GlyphScriptCompiler.SyntaxErrors;
 
 public class InvalidBinaryExpressionTypesException(ParserRuleContext context) : InvalidSyntaxException(context)

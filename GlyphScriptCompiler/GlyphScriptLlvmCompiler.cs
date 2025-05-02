@@ -1,5 +1,4 @@
 using Antlr4.Runtime.Misc;
-using GlyphScriptCompiler.Antlr;
 using GlyphScriptCompiler.SyntaxErrors;
 
 namespace GlyphScriptCompiler;

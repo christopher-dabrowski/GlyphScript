@@ -1,4 +1,3 @@
-using GlyphScriptCompiler.Models;
 using static GlyphScriptCompiler.Models.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;
@@ -148,10 +147,22 @@ public class IntegerOperations : IOperationProvider
         return new GlyphScriptValue(intResult, GlyphScriptType.Int);
     }
 
+    public GlyphScriptValue? ParseImmediateImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        var immediateValueContext = context as GlyphScriptParser.ImmediateValueContext
+            ?? throw new InvalidOperationException("Invalid context for parsing immediate value");
+        var rawValue = immediateValueContext.INT_LITERAL()?.GetText()
+            ?? throw new InvalidOperationException("Invalid context for parsing integer value");
+
+        var value = int.Parse(rawValue);
+        return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false), GlyphScriptType.Int);
+    }
+
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>()
         {
             { new OperationSignature(DefaultValue, [GlyphScriptType.Int]), DefaultValueImplementation },
+            { new OperationSignature(ParseImmediate, [GlyphScriptType.Int]), ParseImmediateImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.Int, GlyphScriptType.Int]), AdditionImplementation },
             { new OperationSignature(Subtraction, [GlyphScriptType.Int, GlyphScriptType.Int]), SubtractionImplementation },
             { new OperationSignature(Multiplication, [GlyphScriptType.Int, GlyphScriptType.Int]), MultiplicationImplementation },

@@ -1,5 +1,3 @@
-using GlyphScriptCompiler.Antlr;
-using GlyphScriptCompiler.Models;
 using GlyphScriptCompiler.SyntaxErrors;
 using GlyphScriptCompiler.TypeOperations;
 
@@ -9,11 +7,10 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
+    // TODO: Remove ExpressionResultTypeEngine
     private readonly ExpressionResultTypeEngine _expressionResultTypeEngine = new();
 
     private readonly Dictionary<string, GlyphScriptValue> _variables = [];
-    private int _stringConstCounter = 0;
-
     private readonly Dictionary<OperationSignature, OperationImplementation> _availableOperations = new();
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
@@ -181,40 +178,25 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitImmediateValue(GlyphScriptParser.ImmediateValueContext context)
     {
-        if (context.INT_LITERAL() != null)
-        {
-            var value = int.Parse(context.INT_LITERAL().GetText());
-            return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false), GlyphScriptType.Int);
-        }
-        if (context.LONG_LITERAL() != null)
-        {
-            var value = long.Parse(context.LONG_LITERAL().GetText().TrimEnd('l', 'L'));
-            return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int64Type(), (ulong)value, false), GlyphScriptType.Long);
-        }
-        if (context.FLOAT_LITERAL() != null)
-        {
-            var value = float.Parse(context.FLOAT_LITERAL().GetText().TrimEnd('f', 'F'));
-            return new GlyphScriptValue(LLVM.ConstReal(LLVM.FloatType(), value), GlyphScriptType.Float);
-        }
-        if (context.DOUBLE_LITERAL() != null)
-        {
-            var value = double.Parse(context.DOUBLE_LITERAL().GetText().TrimEnd('d', 'D'));
-            return new GlyphScriptValue(LLVM.ConstReal(LLVM.DoubleType(), value), GlyphScriptType.Double);
-        }
-        if (context.STRING_LITERAL() != null)
-        {
-            // Extract the string content by removing quotes
-            var text = context.STRING_LITERAL().GetText();
-            var value = text.Substring(1, text.Length - 2); // Remove quotes
+        const OperationKind operationKind = OperationKind.ParseImmediate;
 
-            // Create a unique name for the string constant
-            var stringConstName = $"str_{_stringConstCounter++}";
-            var stringGlobal = CreateStringConstant(LlvmModule, stringConstName, value);
-
-            // Return the pointer to the string
-            return new GlyphScriptValue(GetStringPtr(_llvmBuilder, stringGlobal), GlyphScriptType.String);
+        static GlyphScriptType DetectType(GlyphScriptParser.ImmediateValueContext context)
+        {
+            if (context.INT_LITERAL() != null) return GlyphScriptType.Int;
+            if (context.LONG_LITERAL() != null) return GlyphScriptType.Long;
+            if (context.FLOAT_LITERAL() != null) return GlyphScriptType.Float;
+            if (context.DOUBLE_LITERAL() != null) return GlyphScriptType.Double;
+            if (context.STRING_LITERAL() != null) return GlyphScriptType.String;
+            throw new InvalidOperationException("Invalid immediate value");
         }
-        throw new InvalidOperationException("Invalid immediate value");
+
+        var type = DetectType(context);
+        var operationSignature = new OperationSignature(operationKind, [type]);
+        var createImmediateValueOperation = _availableOperations.GetValueOrDefault(operationSignature)
+            ?? throw new OperationNotAvailableException(context, operationSignature);
+
+        return createImmediateValueOperation(context, [])
+            ?? throw new InvalidOperationException($"Failed to create immediate value for type {type}");
     }
 
     public override object? VisitParenthesisExp(GlyphScriptParser.ParenthesisExpContext context) =>

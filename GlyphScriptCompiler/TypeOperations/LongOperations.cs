@@ -1,4 +1,3 @@
-using GlyphScriptCompiler.Models;
 using static GlyphScriptCompiler.Models.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;
@@ -133,6 +132,17 @@ public class LongOperations : IOperationProvider
         return new GlyphScriptValue(longResult, GlyphScriptType.Long);
     }
 
+    public GlyphScriptValue? ParseImmediateImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        var immediateValueContext = context as GlyphScriptParser.ImmediateValueContext
+            ?? throw new InvalidOperationException("Invalid context for parsing immediate value");
+        var rawValue = immediateValueContext.LONG_LITERAL()?.GetText()
+            ?? throw new InvalidOperationException("Invalid context for parsing long value");
+        
+        var value = long.Parse(rawValue.TrimEnd('L', 'l'));
+        return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int64Type(), (ulong)value, false), GlyphScriptType.Long);
+    }
+
     private LLVMValueRef PromoteToLong(GlyphScriptValue value)
     {
         if (value.Type == GlyphScriptType.Long)
@@ -162,6 +172,7 @@ public class LongOperations : IOperationProvider
         new Dictionary<OperationSignature, OperationImplementation>()
         {
             { new OperationSignature(DefaultValue, [GlyphScriptType.Long]), DefaultValueImplementation },
+            { new OperationSignature(ParseImmediate, [GlyphScriptType.Long]), ParseImmediateImplementation },
 
             // Long-Long operations
             { new OperationSignature(Addition, [GlyphScriptType.Long, GlyphScriptType.Long]), AdditionImplementation },
@@ -169,7 +180,7 @@ public class LongOperations : IOperationProvider
             { new OperationSignature(Multiplication, [GlyphScriptType.Long, GlyphScriptType.Long]), MultiplicationImplementation },
             { new OperationSignature(Division, [GlyphScriptType.Long, GlyphScriptType.Long]), DivisionImplementation },
             { new OperationSignature(OperationKind.Power, [GlyphScriptType.Long, GlyphScriptType.Long]), PowerImplementation },
-
+            
             // Long-Int operations
             { new OperationSignature(Addition, [GlyphScriptType.Long, GlyphScriptType.Int]), AdditionImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.Int, GlyphScriptType.Long]), AdditionImplementation },

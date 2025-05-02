@@ -1,4 +1,3 @@
-using GlyphScriptCompiler.Models;
 using static GlyphScriptCompiler.Models.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;
@@ -112,6 +111,17 @@ public class DoubleOperations : IOperationProvider
         return new(powResult, GlyphScriptType.Double);
     }
 
+    public GlyphScriptValue? ParseImmediateImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        var immediateValueContext = context as GlyphScriptParser.ImmediateValueContext
+            ?? throw new InvalidOperationException("Invalid context for parsing immediate value");
+        var rawValue = immediateValueContext.DOUBLE_LITERAL()?.GetText()
+            ?? throw new InvalidOperationException("Invalid context for parsing double value");
+
+        var value = double.Parse(rawValue.TrimEnd('d', 'D'));
+        return new GlyphScriptValue(LLVM.ConstReal(LLVM.DoubleType(), value), GlyphScriptType.Double);
+    }
+
     private LLVMValueRef PromoteToDouble(GlyphScriptValue value) => value.Type switch
     {
         GlyphScriptType.Double => value.Value,
@@ -124,6 +134,7 @@ public class DoubleOperations : IOperationProvider
         new Dictionary<OperationSignature, OperationImplementation>
         {
             { new OperationSignature(DefaultValue, [GlyphScriptType.Double]), DefaultValueImplementation },
+            { new OperationSignature(ParseImmediate, [GlyphScriptType.Double]), ParseImmediateImplementation },
 
             // Double-Double operations
             { new OperationSignature(Addition, [GlyphScriptType.Double, GlyphScriptType.Double]), AdditionImplementation },
