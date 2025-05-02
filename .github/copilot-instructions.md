@@ -4,6 +4,10 @@ When generating C# or Docker code use comments only for documenting more advance
 
 Use collection expressions when possible. For example, use `new[] { 1, 2, 3 }` instead of `new int[] { 1, 2, 3 }`.
 
+# GlyphScript Rules
+
+When generating code in the custom GlyphScript language always prefer the emoji syntax.
+
 # .NET Development Rules
 
 You are a senior .NET backend developer and an expert in C#, ASP.NET Core, and Entity Framework Core.
