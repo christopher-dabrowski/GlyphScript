@@ -14,7 +14,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     private readonly Dictionary<string, GlyphScriptValue> _variables = [];
     private int _stringConstCounter = 0;
 
-    private Dictionary<OperationSignature, OperationImplementation> _availableOperations = new();
+    private readonly Dictionary<OperationSignature, OperationImplementation> _availableOperations = new();
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
     {
