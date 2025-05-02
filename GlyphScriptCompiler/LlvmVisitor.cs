@@ -101,20 +101,26 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitDefaultDeclaration(GlyphScriptParser.DefaultDeclarationContext context)
     {
+        const OperationKind operationKind = OperationKind.DefaultValue;
+
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
 
-        var value = GetDefaultValueForType(type);
+        var operationSignature = new OperationSignature(operationKind, [type]);
+        var createDefaultValueOperation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (createDefaultValueOperation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
+
+        var value = createDefaultValueOperation([])
+            ?? throw new InvalidOperationException($"Failed to create default value for type {type}");
 
         if (_variables.ContainsKey(id))
-        {
             throw new InvalidOperationException($"Variable '{id}' is already defined.");
-        }
 
         var llvmType = GetLlvmType(type);
         var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
 
-        LLVM.BuildStore(_llvmBuilder, value, variable);
+        LLVM.BuildStore(_llvmBuilder, value.Value, variable);
 
         var result = new GlyphScriptValue(variable, type);
         _variables[id] = result;
@@ -635,19 +641,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return LLVM.CreateEnumAttribute(
             LLVM.GetGlobalContext(),
             LLVM.GetEnumAttributeKindForName(name, name.Length), 0);
-    }
-
-    private static LLVMValueRef GetDefaultValueForType(GlyphScriptType glyphScriptType)
-    {
-        return glyphScriptType switch
-        {
-            GlyphScriptType.Int => LLVM.ConstInt(LLVM.Int32Type(), 0, false),
-            GlyphScriptType.Long => LLVM.ConstInt(LLVM.Int64Type(), 0, false),
-            GlyphScriptType.Float => LLVM.ConstReal(LLVM.FloatType(), 0.0f),
-            GlyphScriptType.Double => LLVM.ConstReal(LLVM.DoubleType(), 0.0),
-            GlyphScriptType.String => LLVM.ConstPointerNull(LLVM.PointerType(LLVM.Int8Type(), 0)), // Default empty string
-            _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
-        };
     }
 
     public void Dispose()
