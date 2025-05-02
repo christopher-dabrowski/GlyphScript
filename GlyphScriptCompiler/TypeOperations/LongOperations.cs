@@ -28,18 +28,15 @@ public class LongOperations : IOperationProvider
         var left = parameters[0];
         var right = parameters[1];
 
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for addition");
-
         return Add(left, right);
     }
 
     public GlyphScriptValue Add(GlyphScriptValue left, GlyphScriptValue right)
     {
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for addition");
+        var promotedLeft = PromoteToLong(left);
+        var promotedRight = PromoteToLong(right);
 
-        var result = LLVM.BuildAdd(_llvmBuilder, left.Value, right.Value, "add_long");
+        var result = LLVM.BuildAdd(_llvmBuilder, promotedLeft, promotedRight, "add_long");
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
@@ -51,18 +48,15 @@ public class LongOperations : IOperationProvider
         var left = parameters[0];
         var right = parameters[1];
 
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for subtraction");
-
         return Subtract(left, right);
     }
 
     public GlyphScriptValue Subtract(GlyphScriptValue left, GlyphScriptValue right)
     {
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for subtraction");
+        var promotedLeft = PromoteToLong(left);
+        var promotedRight = PromoteToLong(right);
 
-        var result = LLVM.BuildSub(_llvmBuilder, left.Value, right.Value, "sub_long");
+        var result = LLVM.BuildSub(_llvmBuilder, promotedLeft, promotedRight, "sub_long");
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
@@ -74,18 +68,15 @@ public class LongOperations : IOperationProvider
         var left = parameters[0];
         var right = parameters[1];
 
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for multiplication");
-
         return Multiply(left, right);
     }
 
     public GlyphScriptValue Multiply(GlyphScriptValue left, GlyphScriptValue right)
     {
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for multiplication");
+        var promotedLeft = PromoteToLong(left);
+        var promotedRight = PromoteToLong(right);
 
-        var result = LLVM.BuildMul(_llvmBuilder, left.Value, right.Value, "mul_long");
+        var result = LLVM.BuildMul(_llvmBuilder, promotedLeft, promotedRight, "mul_long");
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
@@ -97,18 +88,15 @@ public class LongOperations : IOperationProvider
         var left = parameters[0];
         var right = parameters[1];
 
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for division");
-
         return Divide(left, right);
     }
 
     public GlyphScriptValue Divide(GlyphScriptValue left, GlyphScriptValue right)
     {
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for division");
+        var promotedLeft = PromoteToLong(left);
+        var promotedRight = PromoteToLong(right);
 
-        var result = LLVM.BuildSDiv(_llvmBuilder, left.Value, right.Value, "div_long");
+        var result = LLVM.BuildSDiv(_llvmBuilder, promotedLeft, promotedRight, "div_long");
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
@@ -120,20 +108,16 @@ public class LongOperations : IOperationProvider
         var left = parameters[0];
         var right = parameters[1];
 
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for power");
-
         return Power(left, right);
     }
 
     public GlyphScriptValue Power(GlyphScriptValue left, GlyphScriptValue right)
     {
-        if (left.Type != GlyphScriptType.Long || right.Type != GlyphScriptType.Long)
-            throw new InvalidOperationException("Invalid types for power");
+        // Convert operands to double for the pow function
+        var leftDouble = ConvertToDouble(left.Value, left.Type);
+        var rightDouble = ConvertToDouble(right.Value, right.Type);
 
-        var leftDouble = LLVM.BuildSIToFP(_llvmBuilder, left.Value, LLVM.DoubleType(), "to_double_left");
-        var rightDouble = LLVM.BuildSIToFP(_llvmBuilder, right.Value, LLVM.DoubleType(), "to_double_right");
-
+        // Get or create pow function
         var powFunc = LLVM.GetNamedFunction(_llvmModule, "pow");
         if (powFunc.Pointer == IntPtr.Zero)
         {
@@ -141,20 +125,61 @@ public class LongOperations : IOperationProvider
             powFunc = LLVM.AddFunction(_llvmModule, "pow", powType);
         }
 
+        // Call pow function
         var powResult = LLVM.BuildCall(_llvmBuilder, powFunc, [leftDouble, rightDouble], "pow_call");
-        var longResult = LLVM.BuildFPToSI(_llvmBuilder, powResult, LLVM.Int64Type(), "to_long");
 
+        // Convert the result back to long
+        var longResult = LLVM.BuildFPToSI(_llvmBuilder, powResult, LLVM.Int64Type(), "to_long");
         return new GlyphScriptValue(longResult, GlyphScriptType.Long);
+    }
+
+    private LLVMValueRef PromoteToLong(GlyphScriptValue value)
+    {
+        if (value.Type == GlyphScriptType.Long)
+            return value.Value;
+
+        if (value.Type == GlyphScriptType.Int)
+            return LLVM.BuildSExt(_llvmBuilder, value.Value, LLVM.Int64Type(), "int_to_long");
+
+        throw new InvalidOperationException($"Cannot convert {value.Type} to Long in this operation provider");
+    }
+
+    private LLVMValueRef ConvertToDouble(LLVMValueRef value, GlyphScriptType sourceType)
+    {
+        if (sourceType == GlyphScriptType.Double)
+            return value;
+
+        if (sourceType == GlyphScriptType.Float)
+            return LLVM.BuildFPExt(_llvmBuilder, value, LLVM.DoubleType(), "float_to_double");
+
+        if (sourceType == GlyphScriptType.Int || sourceType == GlyphScriptType.Long)
+            return LLVM.BuildSIToFP(_llvmBuilder, value, LLVM.DoubleType(), "int_to_double");
+
+        throw new InvalidOperationException($"Cannot convert {sourceType} to Double");
     }
 
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>()
         {
             { new OperationSignature(DefaultValue, Array.Empty<GlyphScriptType>()), DefaultValueImplementation },
+
+            // Long-Long operations
             { new OperationSignature(Addition, [GlyphScriptType.Long, GlyphScriptType.Long]), AdditionImplementation },
             { new OperationSignature(Subtraction, [GlyphScriptType.Long, GlyphScriptType.Long]), SubtractionImplementation },
             { new OperationSignature(Multiplication, [GlyphScriptType.Long, GlyphScriptType.Long]), MultiplicationImplementation },
             { new OperationSignature(Division, [GlyphScriptType.Long, GlyphScriptType.Long]), DivisionImplementation },
-            { new OperationSignature(OperationKind.Power, [GlyphScriptType.Long, GlyphScriptType.Long]), PowerImplementation }
+            { new OperationSignature(OperationKind.Power, [GlyphScriptType.Long, GlyphScriptType.Long]), PowerImplementation },
+
+            // Long-Int operations
+            { new OperationSignature(Addition, [GlyphScriptType.Long, GlyphScriptType.Int]), AdditionImplementation },
+            { new OperationSignature(Addition, [GlyphScriptType.Int, GlyphScriptType.Long]), AdditionImplementation },
+            { new OperationSignature(Subtraction, [GlyphScriptType.Long, GlyphScriptType.Int]), SubtractionImplementation },
+            { new OperationSignature(Subtraction, [GlyphScriptType.Int, GlyphScriptType.Long]), SubtractionImplementation },
+            { new OperationSignature(Multiplication, [GlyphScriptType.Long, GlyphScriptType.Int]), MultiplicationImplementation },
+            { new OperationSignature(Multiplication, [GlyphScriptType.Int, GlyphScriptType.Long]), MultiplicationImplementation },
+            { new OperationSignature(Division, [GlyphScriptType.Long, GlyphScriptType.Int]), DivisionImplementation },
+            { new OperationSignature(Division, [GlyphScriptType.Int, GlyphScriptType.Long]), DivisionImplementation },
+            { new OperationSignature(OperationKind.Power, [GlyphScriptType.Long, GlyphScriptType.Int]), PowerImplementation },
+            { new OperationSignature(OperationKind.Power, [GlyphScriptType.Int, GlyphScriptType.Long]), PowerImplementation },
         };
 }
