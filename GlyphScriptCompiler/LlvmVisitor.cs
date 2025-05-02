@@ -5,50 +5,6 @@ using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 
-public record GlyphScriptValue
-(
-    LLVMValueRef Value,
-    GlyphScriptType Type
-);
-
-public enum OperationKind
-{
-    Assignment,
-    Addition,
-    Subtraction,
-    Multiplication,
-    Division,
-    Power,
-    Print,
-    Read,
-    DefaultValue
-}
-
-public record OperationSignature(
-    OperationKind Kind,
-    IReadOnlyList<GlyphScriptType> Parameters)
-{
-    public virtual bool Equals(OperationSignature? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Kind == other.Kind && Parameters.SequenceEqual(other.Parameters);
-    }
-
-    public override int GetHashCode()
-    {
-        var parametersHash = Parameters.Aggregate(0, HashCode.Combine);
-        return HashCode.Combine((int)Kind, parametersHash);
-    }
-}
-
-public delegate GlyphScriptValue? OperationImplementation(IReadOnlyList<GlyphScriptValue> parameters);
-
-public interface IOperationProvider
-{
-    IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations { get; }
-}
-
 public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
