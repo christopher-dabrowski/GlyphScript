@@ -1,7 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using Antlr4.Runtime;
-using Antlr4.Runtime.Tree;
-
 namespace GlyphScriptCompiler.SyntaxErrors;
 
 public class InvalidSyntaxException : InvalidOperationException

@@ -1,5 +1,3 @@
-using Antlr4.Runtime;
-
 namespace GlyphScriptCompiler.SyntaxErrors;
 
 public class InvalidBinaryExpressionTypesException(ParserRuleContext context) : InvalidSyntaxException(context)

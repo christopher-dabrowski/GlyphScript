@@ -1,5 +1,3 @@
-using Antlr4.Runtime;
-
 namespace GlyphScriptCompiler.SyntaxErrors;
 
 public sealed class DuplicateVariableDeclarationException(ParserRuleContext context)

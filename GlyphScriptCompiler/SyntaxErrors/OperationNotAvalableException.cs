@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Antlr4.Runtime;
 
 namespace GlyphScriptCompiler.SyntaxErrors;
 

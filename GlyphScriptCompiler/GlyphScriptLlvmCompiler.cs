@@ -1,9 +1,6 @@
-using System.Runtime.InteropServices.JavaScript;
-using Antlr4.Runtime;
 using Antlr4.Runtime.Misc;
 using GlyphScriptCompiler.Antlr;
 using GlyphScriptCompiler.SyntaxErrors;
-using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 

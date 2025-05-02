@@ -1,5 +1,3 @@
-using LLVMSharp;
-
 namespace GlyphScriptCompiler;
 
 public record GlyphScriptValue

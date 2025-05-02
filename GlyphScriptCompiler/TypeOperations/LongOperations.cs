@@ -1,4 +1,3 @@
-using LLVMSharp;
 using static GlyphScriptCompiler.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;

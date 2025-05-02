@@ -1,7 +1,6 @@
 using GlyphScriptCompiler.Antlr;
 using GlyphScriptCompiler.SyntaxErrors;
 using GlyphScriptCompiler.TypeOperations;
-using LLVMSharp;
 
 namespace GlyphScriptCompiler;
 

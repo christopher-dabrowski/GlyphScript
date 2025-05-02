@@ -1,5 +1,3 @@
-using Antlr4.Runtime;
-
 namespace GlyphScriptCompiler.SyntaxErrors;
 
 public sealed class UndefinedVariableUsageException(ParserRuleContext context)
