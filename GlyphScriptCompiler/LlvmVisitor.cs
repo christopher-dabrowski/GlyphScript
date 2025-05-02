@@ -271,61 +271,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var leftValue = Visit(context.expression(0)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the left expression");
         var rightValue = Visit(context.expression(1)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the right expression");
 
-        var left = leftValue.Value;
-        var right = rightValue.Value;
+        var operationKind = context.MULTIPLICATION_SYMBOL() != null
+            ? OperationKind.Multiplication
+            : OperationKind.Division;
+        var operationSignature = new OperationSignature(operationKind, [leftValue.Type, rightValue.Type]);
 
-        // Use the type engine to determine the result type
-        var resultType = context.MULTIPLICATION_SYMBOL() != null
-            ? _expressionResultTypeEngine.GetMultiplicationResultType(context, leftValue.Type, rightValue.Type)
-            : _expressionResultTypeEngine.GetDivisionResultType(context, leftValue.Type, rightValue.Type);
+        var operation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (operation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
 
-        var leftType = LLVM.TypeOf(left);
-        var rightType = LLVM.TypeOf(right);
-        var leftKind = LLVM.GetTypeKind(leftType);
-        var rightKind = LLVM.GetTypeKind(rightType);
-
-        if (leftKind == LLVMTypeKind.LLVMIntegerTypeKind && rightKind == LLVMTypeKind.LLVMIntegerTypeKind)
-        {
-            var leftWidth = LLVM.GetIntTypeWidth(leftType);
-            var rightWidth = LLVM.GetIntTypeWidth(rightType);
-            if (leftWidth != rightWidth)
-            {
-                if (leftWidth == 32 && rightWidth == 64)
-                {
-                    left = LLVM.BuildSExt(_llvmBuilder, left, LLVM.Int64Type(), "sext_to_long");
-                    leftType = LLVM.Int64Type();
-                }
-                else if (leftWidth == 64 && rightWidth == 32)
-                {
-                    right = LLVM.BuildSExt(_llvmBuilder, right, LLVM.Int64Type(), "sext_to_long");
-                    rightType = LLVM.Int64Type();
-                }
-            }
-        }
-        else if (leftKind != rightKind)
-        {
-            if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
-            {
-                left = LLVM.BuildSIToFP(_llvmBuilder, left, rightType, "promote_to_float");
-                leftType = rightType;
-            }
-            else if (rightKind is LLVMTypeKind.LLVMIntegerTypeKind && leftKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
-            {
-                right = LLVM.BuildSIToFP(_llvmBuilder, right, leftType, "promote_to_float");
-                rightType = leftType;
-            }
-        }
-
-        var isFloatingPoint = LLVM.GetTypeKind(leftType) is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind;
-        var llvmValue = context.MULTIPLICATION_SYMBOL() != null
-                ? (isFloatingPoint
-                    ? LLVM.BuildFMul(_llvmBuilder, left, right, "fmul")
-                    : LLVM.BuildMul(_llvmBuilder, left, right, "mul"))
-                : (isFloatingPoint
-                    ? LLVM.BuildFDiv(_llvmBuilder, left, right, "fdiv")
-                    : LLVM.BuildSDiv(_llvmBuilder, left, right, "div"));
-
-        return new GlyphScriptValue(llvmValue, resultType);
+        return operation([leftValue, rightValue]);
     }
 
     public override object? VisitAddSubExp(GlyphScriptParser.AddSubExpContext context)
@@ -333,78 +288,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var leftValue = Visit(context.expression(0)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the left expression");
         var rightValue = Visit(context.expression(1)) as GlyphScriptValue ?? throw new InvalidOperationException("Unable to resolve the right expression");
 
-        var left = leftValue.Value;
-        var right = rightValue.Value;
+        var operationKind = context.ADDITION_SYMBOL() != null
+            ? OperationKind.Addition
+            : OperationKind.Subtraction;
+        var operationSignature = new OperationSignature(operationKind, [leftValue.Type, rightValue.Type]);
 
-        // Use the type engine to determine the result type
-        var resultType = context.ADDITION_SYMBOL() != null
-            ? _expressionResultTypeEngine.GetAdditionResultType(context, leftValue.Type, rightValue.Type)
-            : _expressionResultTypeEngine.GetSubtractionResultType(context, leftValue.Type, rightValue.Type);
+        var operation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (operation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
 
-        var leftType = LLVM.TypeOf(left);
-        var rightType = LLVM.TypeOf(right);
-        var leftKind = LLVM.GetTypeKind(leftType);
-        var rightKind = LLVM.GetTypeKind(rightType);
-
-        // Handle int/long promotion
-        if (leftKind == LLVMTypeKind.LLVMIntegerTypeKind && rightKind == LLVMTypeKind.LLVMIntegerTypeKind)
-        {
-            var leftWidth = LLVM.GetIntTypeWidth(leftType);
-            var rightWidth = LLVM.GetIntTypeWidth(rightType);
-            if (leftWidth != rightWidth)
-            {
-                if (leftWidth == 32 && rightWidth == 64)
-                {
-                    left = LLVM.BuildSExt(_llvmBuilder, left, LLVM.Int64Type(), "sext_to_long");
-                    leftType = LLVM.Int64Type();
-                }
-                else if (leftWidth == 64 && rightWidth == 32)
-                {
-                    right = LLVM.BuildSExt(_llvmBuilder, right, LLVM.Int64Type(), "sext_to_long");
-                    rightType = LLVM.Int64Type();
-                }
-                else
-                {
-                    throw new InvalidOperationException("Unsupported integer width combination in addition/subtraction operation");
-                }
-            }
-        }
-        else if (leftKind != rightKind)
-        {
-            if (leftKind is LLVMTypeKind.LLVMIntegerTypeKind && rightKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
-            {
-                left = LLVM.BuildSIToFP(_llvmBuilder, left, rightType, "promote_to_float");
-                leftType = rightType;
-            }
-            else if (rightKind is LLVMTypeKind.LLVMIntegerTypeKind && leftKind is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind)
-            {
-                right = LLVM.BuildSIToFP(_llvmBuilder, right, leftType, "promote_to_float");
-                rightType = leftType;
-            }
-            else if (leftKind == LLVMTypeKind.LLVMPointerTypeKind && rightKind == LLVMTypeKind.LLVMPointerTypeKind &&
-                     leftValue.Type == GlyphScriptType.String && rightValue.Type == GlyphScriptType.String &&
-                     context.ADDITION_SYMBOL() != null)
-            {
-                // String concatenation case - to be implemented
-                throw new NotImplementedException("String concatenation is not implemented yet");
-            }
-            else
-            {
-                throw new InvalidOperationException("Type mismatch in addition/subtraction operation");
-            }
-        }
-
-        var isFloatingPoint = LLVM.GetTypeKind(leftType) is LLVMTypeKind.LLVMFloatTypeKind or LLVMTypeKind.LLVMDoubleTypeKind;
-
-        var llvmValue = context.ADDITION_SYMBOL() != null
-            ? (isFloatingPoint
-                ? LLVM.BuildFAdd(_llvmBuilder, left, right, "fadd")
-                : LLVM.BuildAdd(_llvmBuilder, left, right, "add"))
-            : (isFloatingPoint
-                ? LLVM.BuildFSub(_llvmBuilder, left, right, "fsub")
-                : LLVM.BuildSub(_llvmBuilder, left, right, "sub"));
-
-        return new GlyphScriptValue(llvmValue, resultType);
+        return operation([leftValue, rightValue]);
     }
 
     public override object? VisitPowerExp(GlyphScriptParser.PowerExpContext context)
