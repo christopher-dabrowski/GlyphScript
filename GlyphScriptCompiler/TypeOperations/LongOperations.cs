@@ -14,13 +14,13 @@ public class LongOperations : IOperationProvider
         _llvmBuilder = llvmBuilder;
     }
 
-    public GlyphScriptValue? DefaultValueImplementation(IReadOnlyList<GlyphScriptValue> parameters) =>
+    public GlyphScriptValue? DefaultValueImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters) =>
         GetDefaultValue();
 
     public GlyphScriptValue GetDefaultValue() =>
         new GlyphScriptValue(LLVM.ConstInt(LLVM.Int64Type(), 0, false), GlyphScriptType.Long);
 
-    public GlyphScriptValue? AdditionImplementation(IReadOnlyList<GlyphScriptValue> parameters)
+    public GlyphScriptValue? AdditionImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
             throw new InvalidOperationException("Invalid number of parameters for addition");
@@ -40,7 +40,7 @@ public class LongOperations : IOperationProvider
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
-    public GlyphScriptValue? SubtractionImplementation(IReadOnlyList<GlyphScriptValue> parameters)
+    public GlyphScriptValue? SubtractionImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
             throw new InvalidOperationException("Invalid number of parameters for subtraction");
@@ -60,7 +60,7 @@ public class LongOperations : IOperationProvider
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
-    public GlyphScriptValue? MultiplicationImplementation(IReadOnlyList<GlyphScriptValue> parameters)
+    public GlyphScriptValue? MultiplicationImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
             throw new InvalidOperationException("Invalid number of parameters for multiplication");
@@ -80,7 +80,7 @@ public class LongOperations : IOperationProvider
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
-    public GlyphScriptValue? DivisionImplementation(IReadOnlyList<GlyphScriptValue> parameters)
+    public GlyphScriptValue? DivisionImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
             throw new InvalidOperationException("Invalid number of parameters for division");
@@ -100,7 +100,7 @@ public class LongOperations : IOperationProvider
         return new GlyphScriptValue(result, GlyphScriptType.Long);
     }
 
-    public GlyphScriptValue? PowerImplementation(IReadOnlyList<GlyphScriptValue> parameters)
+    public GlyphScriptValue? PowerImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
             throw new InvalidOperationException("Invalid number of parameters for power");

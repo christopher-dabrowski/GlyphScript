@@ -1,3 +1,4 @@
+using Antlr4.Runtime;
 using LLVMSharp;
 using static GlyphScriptCompiler.OperationKind;
 
@@ -15,13 +16,13 @@ public class StringOperations : IOperationProvider
         _llvmBuilder = llvmBuilder;
     }
 
-    public GlyphScriptValue? DefaultValueImplementation(IReadOnlyList<GlyphScriptValue> parameters) =>
+    public GlyphScriptValue? DefaultValueImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters) =>
         GetDefaultValue();
 
     public GlyphScriptValue GetDefaultValue() =>
         new(LLVM.ConstPointerNull(LLVM.PointerType(LLVM.Int8Type(), 0)), GlyphScriptType.String);
 
-    public GlyphScriptValue? AdditionImplementation(IReadOnlyList<GlyphScriptValue> parameters)
+    public GlyphScriptValue? AdditionImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
             throw new InvalidOperationException("Invalid number of parameters for string concatenation");
@@ -39,7 +40,7 @@ public class StringOperations : IOperationProvider
         if (strcatFunc.Pointer == IntPtr.Zero)
         {
             var i8PtrType = LLVM.PointerType(LLVM.Int8Type(), 0);
-            var strcatType = LLVM.FunctionType(i8PtrType, new[] { i8PtrType, i8PtrType }, false);
+            var strcatType = LLVM.FunctionType(i8PtrType, [i8PtrType, i8PtrType], false);
             strcatFunc = LLVM.AddFunction(_llvmModule, "strcat", strcatType);
         }
 
@@ -48,7 +49,7 @@ public class StringOperations : IOperationProvider
         if (strlenFunc.Pointer == IntPtr.Zero)
         {
             var i8PtrType = LLVM.PointerType(LLVM.Int8Type(), 0);
-            var strlenType = LLVM.FunctionType(LLVM.Int64Type(), new[] { i8PtrType }, false);
+            var strlenType = LLVM.FunctionType(LLVM.Int64Type(), [i8PtrType], false);
             strlenFunc = LLVM.AddFunction(_llvmModule, "strlen", strlenType);
         }
 
@@ -57,7 +58,7 @@ public class StringOperations : IOperationProvider
         if (strcpyFunc.Pointer == IntPtr.Zero)
         {
             var i8PtrType = LLVM.PointerType(LLVM.Int8Type(), 0);
-            var strcpyType = LLVM.FunctionType(i8PtrType, new[] { i8PtrType, i8PtrType }, false);
+            var strcpyType = LLVM.FunctionType(i8PtrType, [i8PtrType, i8PtrType], false);
             strcpyFunc = LLVM.AddFunction(_llvmModule, "strcpy", strcpyType);
         }
 
@@ -65,26 +66,26 @@ public class StringOperations : IOperationProvider
         var mallocFunc = LLVM.GetNamedFunction(_llvmModule, "malloc");
         if (mallocFunc.Pointer == IntPtr.Zero)
         {
-            var mallocType = LLVM.FunctionType(LLVM.PointerType(LLVM.Int8Type(), 0), new[] { LLVM.Int64Type() }, false);
+            var mallocType = LLVM.FunctionType(LLVM.PointerType(LLVM.Int8Type(), 0), [LLVM.Int64Type()], false);
             mallocFunc = LLVM.AddFunction(_llvmModule, "malloc", mallocType);
         }
 
         // Calculate required buffer size
-        var leftLength = LLVM.BuildCall(_llvmBuilder, strlenFunc, new[] { left.Value }, "left_len");
-        var rightLength = LLVM.BuildCall(_llvmBuilder, strlenFunc, new[] { right.Value }, "right_len");
+        var leftLength = LLVM.BuildCall(_llvmBuilder, strlenFunc, [left.Value], "left_len");
+        var rightLength = LLVM.BuildCall(_llvmBuilder, strlenFunc, [right.Value], "right_len");
 
         // Add 1 for null terminator
         var totalLength = LLVM.BuildAdd(_llvmBuilder, leftLength, rightLength, "total_len");
         var bufferSize = LLVM.BuildAdd(_llvmBuilder, totalLength, LLVM.ConstInt(LLVM.Int64Type(), 1, false), "buffer_size");
 
         // Allocate buffer for the concatenated string
-        var buffer = LLVM.BuildCall(_llvmBuilder, mallocFunc, new[] { bufferSize }, "concat_buffer");
+        var buffer = LLVM.BuildCall(_llvmBuilder, mallocFunc, [bufferSize], "concat_buffer");
 
         // Copy first string to buffer
-        LLVM.BuildCall(_llvmBuilder, strcpyFunc, new[] { buffer, left.Value }, "copy_left");
+        LLVM.BuildCall(_llvmBuilder, strcpyFunc, [buffer, left.Value], "copy_left");
 
         // Concatenate second string
-        var result = LLVM.BuildCall(_llvmBuilder, strcatFunc, new[] { buffer, right.Value }, "concat_result");
+        var result = LLVM.BuildCall(_llvmBuilder, strcatFunc, [buffer, right.Value], "concat_result");
 
         return new GlyphScriptValue(result, GlyphScriptType.String);
     }
@@ -115,10 +116,10 @@ public class StringOperations : IOperationProvider
     private LLVMValueRef GetStringPtr(LLVMValueRef stringGlobal)
     {
         LLVMValueRef[] indices =
-        {
+        [
             LLVM.ConstInt(LLVM.Int32Type(), 0, false),
             LLVM.ConstInt(LLVM.Int32Type(), 0, false)
-        };
+        ];
 
         return LLVM.BuildGEP(_llvmBuilder, stringGlobal, indices, string.Empty);
     }

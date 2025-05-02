@@ -67,7 +67,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (createDefaultValueOperation is null)
             throw new OperationNotAvailableException(context, operationSignature);
 
-        var value = createDefaultValueOperation([])
+        var value = createDefaultValueOperation(context, [])
             ?? throw new InvalidOperationException($"Failed to create default value for type {type}");
 
         if (_variables.ContainsKey(id))
@@ -236,7 +236,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (operation is null)
             throw new OperationNotAvailableException(context, operationSignature);
 
-        return operation([leftValue, rightValue]);
+        return operation(context, [leftValue, rightValue]);
     }
 
     public override object? VisitAddSubExp(GlyphScriptParser.AddSubExpContext context)
@@ -253,7 +253,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (operation is null)
             throw new OperationNotAvailableException(context, operationSignature);
 
-        return operation([leftValue, rightValue]);
+        return operation(context, [leftValue, rightValue]);
     }
 
     public override object? VisitPowerExp(GlyphScriptParser.PowerExpContext context)
@@ -269,7 +269,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (operation is null)
             throw new OperationNotAvailableException(context, operationSignature);
 
-        return operation([leftValue, rightValue]);
+        return operation(context, [leftValue, rightValue]);
     }
 
     public override object? VisitValueExp(GlyphScriptParser.ValueExpContext context) =>
