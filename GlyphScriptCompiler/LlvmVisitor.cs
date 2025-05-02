@@ -70,6 +70,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             new LongOperations(llvmModule, _llvmBuilder),
             new FloatOperations(llvmModule, _llvmBuilder),
             new DoubleOperations(llvmModule, _llvmBuilder),
+            new StringOperations(llvmModule, _llvmBuilder)
         ];
 
         foreach (var provider in initialOperationProviders)
