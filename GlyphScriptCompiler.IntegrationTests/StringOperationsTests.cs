@@ -58,6 +58,15 @@ public class StringOperationsTests : IDisposable
         Assert.Equal(expectedOutput, output);
     }
 
+    [Fact]
+    public async Task ShouldJoinStrings()
+    {
+        var output = await RunProgram("joinStrings.gs");
+
+        var expectedOutput = "Hello, World!\nWelcome to GlyphScript!\n";
+        Assert.Equal(expectedOutput, output);
+    }
+
     public void Dispose()
     {
         _runner.Dispose();
