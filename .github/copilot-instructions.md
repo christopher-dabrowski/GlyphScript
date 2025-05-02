@@ -7,6 +7,8 @@ Use collection expressions when possible. For example, use `new[] { 1, 2, 3 }` i
 # GlyphScript Rules
 
 When generating code in the custom GlyphScript language always prefer the emoji syntax.
+You will know that the file is a GlyphScript file when the file name ends with `.gs` example `code.gs`.
+You will know what syntax to use by looking up the .g4 files.
 
 # .NET Development Rules
 

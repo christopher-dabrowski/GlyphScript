@@ -67,6 +67,16 @@ public class StringOperationsTests : IDisposable
         Assert.Equal(expectedOutput, output);
     }
 
+    [Fact]
+    public async Task ShouldReadStringFromInput()
+    {
+        const string testInput = "Hello from input!";
+        var output = await RunProgram("readString.gs", testInput);
+
+        var expectedOutput = $"{testInput}\n";
+        Assert.Equal(expectedOutput, output);
+    }
+
     public void Dispose()
     {
         _runner.Dispose();
