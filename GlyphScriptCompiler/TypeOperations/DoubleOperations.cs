@@ -1,4 +1,5 @@
-using static GlyphScriptCompiler.OperationKind;
+using GlyphScriptCompiler.Models;
+using static GlyphScriptCompiler.Models.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;
 

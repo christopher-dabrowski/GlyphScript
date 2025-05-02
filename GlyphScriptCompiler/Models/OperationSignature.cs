@@ -1,4 +1,4 @@
-namespace GlyphScriptCompiler;
+namespace GlyphScriptCompiler.Models;
 
 public record OperationSignature(
     OperationKind Kind,

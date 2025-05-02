@@ -1,3 +1,4 @@
+using GlyphScriptCompiler.Models;
 using GlyphScriptCompiler.SyntaxErrors;
 
 namespace GlyphScriptCompiler;

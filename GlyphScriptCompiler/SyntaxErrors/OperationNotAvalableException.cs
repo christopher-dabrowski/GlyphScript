@@ -1,4 +1,5 @@
 using System.Text.Json;
+using GlyphScriptCompiler.Models;
 
 namespace GlyphScriptCompiler.SyntaxErrors;
 

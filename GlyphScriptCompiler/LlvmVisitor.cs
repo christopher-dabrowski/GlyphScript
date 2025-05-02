@@ -1,4 +1,5 @@
 using GlyphScriptCompiler.Antlr;
+using GlyphScriptCompiler.Models;
 using GlyphScriptCompiler.SyntaxErrors;
 using GlyphScriptCompiler.TypeOperations;
 

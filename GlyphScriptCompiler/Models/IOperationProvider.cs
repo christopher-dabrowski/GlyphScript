@@ -1,4 +1,4 @@
-namespace GlyphScriptCompiler;
+namespace GlyphScriptCompiler.Models;
 
 public interface IOperationProvider
 {
