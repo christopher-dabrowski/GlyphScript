@@ -1,5 +1,6 @@
 using GlyphScriptCompiler.Antlr;
 using GlyphScriptCompiler.SyntaxErrors;
+using GlyphScriptCompiler.TypeOperations;
 using LLVMSharp;
 
 namespace GlyphScriptCompiler;
@@ -65,7 +66,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         IOperationProvider[] initialOperationProviders =
         [
-            new IntegerOperations(llvmModule, _llvmBuilder)
+            new IntegerOperations(llvmModule, _llvmBuilder),
+            new LongOperations(llvmModule, _llvmBuilder)
         ];
 
         foreach (var provider in initialOperationProviders)
@@ -208,7 +210,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var args = new[] { GetStringPtr(_llvmBuilder, scanfFormatStr), variable.Value };
         var scanfResult = LLVM.BuildCall(_llvmBuilder, scanfFunc, args, "scanf_call");
-        
+
         // After reading, build a load to get the current value and return it
         var loadedValue = LLVM.BuildLoad(_llvmBuilder, variable.Value, $"read_{id}");
         return new GlyphScriptValue(loadedValue, variable.Type);
