@@ -123,7 +123,7 @@ public class DoubleOperations : IOperationProvider
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>
         {
-            { new OperationSignature(DefaultValue, Array.Empty<GlyphScriptType>()), DefaultValueImplementation },
+            { new OperationSignature(DefaultValue, [GlyphScriptType.Double]), DefaultValueImplementation },
 
             // Double-Double operations
             { new OperationSignature(Addition, [GlyphScriptType.Double, GlyphScriptType.Double]), AdditionImplementation },

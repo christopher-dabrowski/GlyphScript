@@ -151,7 +151,7 @@ public class IntegerOperations : IOperationProvider
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>()
         {
-            { new OperationSignature(DefaultValue, Array.Empty<GlyphScriptType>()), DefaultValueImplementation },
+            { new OperationSignature(DefaultValue, [GlyphScriptType.Int]), DefaultValueImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.Int, GlyphScriptType.Int]), AdditionImplementation },
             { new OperationSignature(Subtraction, [GlyphScriptType.Int, GlyphScriptType.Int]), SubtractionImplementation },
             { new OperationSignature(Multiplication, [GlyphScriptType.Int, GlyphScriptType.Int]), MultiplicationImplementation },

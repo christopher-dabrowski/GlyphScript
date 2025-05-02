@@ -161,7 +161,7 @@ public class LongOperations : IOperationProvider
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>()
         {
-            { new OperationSignature(DefaultValue, Array.Empty<GlyphScriptType>()), DefaultValueImplementation },
+            { new OperationSignature(DefaultValue, [GlyphScriptType.Long]), DefaultValueImplementation },
 
             // Long-Long operations
             { new OperationSignature(Addition, [GlyphScriptType.Long, GlyphScriptType.Long]), AdditionImplementation },

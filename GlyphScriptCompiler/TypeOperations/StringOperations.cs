@@ -126,7 +126,7 @@ public class StringOperations : IOperationProvider
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>
         {
-            { new OperationSignature(DefaultValue, []), DefaultValueImplementation },
+            { new OperationSignature(DefaultValue, [GlyphScriptType.String]), DefaultValueImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.String, GlyphScriptType.String]), AdditionImplementation }
         };
 }

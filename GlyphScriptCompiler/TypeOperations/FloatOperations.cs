@@ -155,7 +155,7 @@ public class FloatOperations : IOperationProvider
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>
         {
-            { new OperationSignature(DefaultValue, Array.Empty<GlyphScriptType>()), DefaultValueImplementation },
+            { new OperationSignature(DefaultValue, [GlyphScriptType.Float]), DefaultValueImplementation },
 
             // Float-Float operations
             { new OperationSignature(Addition, [GlyphScriptType.Float, GlyphScriptType.Float]), AdditionImplementation },
