@@ -69,3 +69,17 @@ Współczesne wersje ANTLR umożliwiają obsługę operatorów o różnym priory
 Nie jest potrzebne dodawanie dodatkowych zasad parsowania do gramatyki.
 Kolejność operatorów jest ustalana na podstawie kolejności alternatyw w gramatyce.
 Upraszcza to zdecydowanie czytelność [gramatyki GlyphScript](GlyphScript.g4).
+
+### Modularyzacja Generacji Kodu LLVM
+
+#### Kontekst
+
+W trakcie implementacji generacji kodu LLVM dla różnych typów danych i operacji, klasa LlvmVisitor zaczęła rozrastać się nadmiernie, co utrudniało jej utrzymanie.
+
+#### Decyzja
+
+W projekcie zastosowano podejście modułowe, dzieląc kod na podstawie typu danych. Dla każdego typu danych stworzono oddzielną klasę w folderze `TypeOperations`, implementującą interfejs `IOperationProvider`. Każda z tych klas odpowiada za generację kodu LLVM dla operacji specyficznych dla danego typu.
+
+#### Wpływ
+
+Rozwiązanie to pozwoliło znacząco ograniczyć rozrost głównej klasy LlvmVisitor oraz umożliwiło bardziej izolowany rozwój i testowanie funkcjonalności dla każdego typu danych. Dodatkowo, struktura ta ułatwia dodawanie nowych typów danych i operacji poprzez tworzenie nowych klas implementujących wspólny interfejs.
