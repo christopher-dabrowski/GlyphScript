@@ -2,6 +2,8 @@
 
 When generating C# or Docker code use comments only for documenting more advanced code. For basic instructions the code itself should be enough.
 
+Use collection expressions when possible. For example, use `new[] { 1, 2, 3 }` instead of `new int[] { 1, 2, 3 }`.
+
 # .NET Development Rules
 
 You are a senior .NET backend developer and an expert in C#, ASP.NET Core, and Entity Framework Core.
