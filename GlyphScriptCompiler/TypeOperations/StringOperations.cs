@@ -15,6 +15,13 @@ public class StringOperations : IOperationProvider
         _llvmBuilder = llvmBuilder;
     }
 
+    public void Initialize()
+    {
+        LlvmHelper.CreateStringConstant(_llvmModule, "strp_string", "%s\n\0");
+        LlvmHelper.CreateStringConstant(_llvmModule, "strs_string", "%s\0");
+        LlvmHelper.CreateStringConstant(_llvmModule, "strs_line", "%[^\n]\0");
+    }
+
     public GlyphScriptValue? DefaultValueImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters) =>
         GetDefaultValue();
 

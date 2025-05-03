@@ -14,6 +14,12 @@ public class LongOperations : IOperationProvider
         _llvmBuilder = llvmBuilder;
     }
 
+    public void Initialize()
+    {
+        LlvmHelper.CreateStringConstant(_llvmModule, "strp_long", "%ld\n\0");
+        LlvmHelper.CreateStringConstant(_llvmModule, "strs_long", "%ld\0");
+    }
+
     public GlyphScriptValue? DefaultValueImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters) =>
         GetDefaultValue();
 
@@ -139,7 +145,7 @@ public class LongOperations : IOperationProvider
             ?? throw new InvalidOperationException("Invalid context for parsing immediate value");
         var rawValue = immediateValueContext.LONG_LITERAL()?.GetText()
             ?? throw new InvalidOperationException("Invalid context for parsing long value");
-        
+
         var value = long.Parse(rawValue.TrimEnd('L', 'l'));
         return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int64Type(), (ulong)value, false), GlyphScriptType.Long);
     }
@@ -181,7 +187,7 @@ public class LongOperations : IOperationProvider
             { new OperationSignature(Multiplication, [GlyphScriptType.Long, GlyphScriptType.Long]), MultiplicationImplementation },
             { new OperationSignature(Division, [GlyphScriptType.Long, GlyphScriptType.Long]), DivisionImplementation },
             { new OperationSignature(OperationKind.Power, [GlyphScriptType.Long, GlyphScriptType.Long]), PowerImplementation },
-            
+
             // Long-Int operations
             { new OperationSignature(Addition, [GlyphScriptType.Long, GlyphScriptType.Int]), AdditionImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.Int, GlyphScriptType.Long]), AdditionImplementation },

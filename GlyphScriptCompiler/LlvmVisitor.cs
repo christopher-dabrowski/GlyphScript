@@ -28,7 +28,10 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         ];
 
         foreach (var provider in initialOperationProviders)
+        {
+            provider.Initialize();
             RegisterOperations(provider);
+        }
     }
 
     private void RegisterOperations(IOperationProvider provider)
@@ -313,20 +316,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     {
         var i8Type = LLVM.Int8Type();
         var i8PtrType = LLVM.PointerType(i8Type, 0);
-
-        LlvmHelper.CreateStringConstant(module, "strp_int", "%d\n\0");
-        LlvmHelper.CreateStringConstant(module, "strp_long", "%ld\n\0");
-        LlvmHelper.CreateStringConstant(module, "strp_float", "%f\n\0");
-        LlvmHelper.CreateStringConstant(module, "strp_double", "%lf\n\0");
-        LlvmHelper.CreateStringConstant(module, "strp_string", "%s\n\0");
-
-        LlvmHelper.CreateStringConstant(module, "strs_int", "%d\0");
-        LlvmHelper.CreateStringConstant(module, "strs_long", "%ld\0");
-        LlvmHelper.CreateStringConstant(module, "strs_float", "%f\0");
-        LlvmHelper.CreateStringConstant(module, "strs_double", "%lf\0");
-        LlvmHelper.CreateStringConstant(module, "strs_string", "%s\0");
-
-        LlvmHelper.CreateStringConstant(module, "strs_line", "%[^\n]\0");
 
         LLVMTypeRef[] printfParamTypes = [i8PtrType];
         var printfType = LLVM.FunctionType(LLVM.Int32Type(), printfParamTypes, true);

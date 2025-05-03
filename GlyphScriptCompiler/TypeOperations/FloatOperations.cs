@@ -14,6 +14,12 @@ public class FloatOperations : IOperationProvider
         _llvmBuilder = llvmBuilder;
     }
 
+    public void Initialize()
+    {
+        LlvmHelper.CreateStringConstant(_llvmModule, "strp_float", "%f\n\0");
+        LlvmHelper.CreateStringConstant(_llvmModule, "strs_float", "%f\0");
+    }
+
     public GlyphScriptValue? DefaultValueImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters) =>
         GetDefaultValue();
 
@@ -135,7 +141,7 @@ public class FloatOperations : IOperationProvider
             ?? throw new InvalidOperationException("Invalid context for parsing immediate value");
         var rawValue = immediateValueContext.FLOAT_LITERAL()?.GetText()
             ?? throw new InvalidOperationException("Invalid context for parsing float value");
-        
+
         var value = float.Parse(rawValue.TrimEnd('F', 'f'));
         return new GlyphScriptValue(LLVM.ConstReal(LLVM.FloatType(), value), GlyphScriptType.Float);
     }
@@ -175,7 +181,7 @@ public class FloatOperations : IOperationProvider
             { new OperationSignature(Multiplication, [GlyphScriptType.Float, GlyphScriptType.Float]), MultiplicationImplementation },
             { new OperationSignature(Division, [GlyphScriptType.Float, GlyphScriptType.Float]), DivisionImplementation },
             { new OperationSignature(OperationKind.Power, [GlyphScriptType.Float, GlyphScriptType.Float]), PowerImplementation },
-            
+
             // Float-Int operations
             { new OperationSignature(Addition, [GlyphScriptType.Float, GlyphScriptType.Int]), AdditionImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.Int, GlyphScriptType.Float]), AdditionImplementation },

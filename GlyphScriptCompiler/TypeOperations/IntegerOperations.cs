@@ -14,6 +14,12 @@ public class IntegerOperations : IOperationProvider
         _llvmBuilder = llvmBuilder;
     }
 
+    public void Initialize()
+    {
+        LlvmHelper.CreateStringConstant(_llvmModule, "strp_int", "%d\n\0");
+        LlvmHelper.CreateStringConstant(_llvmModule, "strs_int", "%d\0");
+    }
+
     public GlyphScriptValue? DefaultValueImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters) =>
         GetDefaultValue();
 

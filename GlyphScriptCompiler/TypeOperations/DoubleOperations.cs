@@ -14,6 +14,12 @@ public class DoubleOperations : IOperationProvider
         _llvmBuilder = llvmBuilder;
     }
 
+    public void Initialize()
+    {
+        LlvmHelper.CreateStringConstant(_llvmModule, "strp_double", "%lf\n\0");
+        LlvmHelper.CreateStringConstant(_llvmModule, "strs_double", "%lf\0");
+    }
+
     public GlyphScriptValue? DefaultValueImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters) =>
         GetDefaultValue();
 
