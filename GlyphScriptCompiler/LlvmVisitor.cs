@@ -1,3 +1,4 @@
+using GlyphScriptCompiler.Contracts;
 using GlyphScriptCompiler.SyntaxErrors;
 using GlyphScriptCompiler.TypeOperations;
 

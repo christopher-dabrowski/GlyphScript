@@ -1,3 +1,4 @@
+using GlyphScriptCompiler.Contracts;
 using static GlyphScriptCompiler.Models.OperationKind;
 
 namespace GlyphScriptCompiler.TypeOperations;
