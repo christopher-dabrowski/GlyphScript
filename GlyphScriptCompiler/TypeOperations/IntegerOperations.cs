@@ -154,6 +154,70 @@ public class IntegerOperations : IOperationProvider
         return new GlyphScriptValue(intResult, GlyphScriptType.Int);
     }
 
+    public GlyphScriptValue? PrintImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException("Invalid number of parameters for print operation");
+
+        var value = parameters[0];
+
+        if (value.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid type for print operation");
+
+        // Get printf function
+        var printfFunc = LLVM.GetNamedFunction(_llvmModule, "printf");
+        if (printfFunc.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("printf function not found");
+
+        // Get format string for integer printing
+        var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strp_int");
+        if (formatGlobal.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("Format string for int printing not found");
+
+        // Create GEP to get a pointer to the format string
+        var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
+
+        // Call printf with the format string and the integer value
+        LLVM.BuildCall(_llvmBuilder, printfFunc, [formatPtr, value.Value], string.Empty);
+
+        return value;
+    }
+
+    public GlyphScriptValue? ReadImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException("Invalid number of parameters for read operation");
+
+        var variable = parameters[0];
+
+        if (variable.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid type for read operation");
+
+        // Get scanf function
+        var scanfFunc = LLVM.GetNamedFunction(_llvmModule, "scanf");
+        if (scanfFunc.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("scanf function not found");
+
+        // Get format string for integer reading
+        var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strs_int");
+        if (formatGlobal.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("Format string for int reading not found");
+
+        // Create GEP to get a pointer to the format string
+        var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
+
+        // Create a temporary variable to store the read value
+        var tempVar = LLVM.BuildAlloca(_llvmBuilder, LLVM.Int32Type(), "temp_int");
+
+        // Call scanf with the format string and the address of the temporary variable
+        LLVM.BuildCall(_llvmBuilder, scanfFunc, [formatPtr, tempVar], string.Empty);
+
+        // Load the value from the temporary variable
+        var readValue = LLVM.BuildLoad(_llvmBuilder, tempVar, "read_int");
+
+        return new GlyphScriptValue(readValue, GlyphScriptType.Int);
+    }
+
     public GlyphScriptValue? ParseImmediateImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         var immediateValueContext = context as GlyphScriptParser.ImmediateValueContext
@@ -174,6 +238,8 @@ public class IntegerOperations : IOperationProvider
             { new OperationSignature(Subtraction, [GlyphScriptType.Int, GlyphScriptType.Int]), SubtractionImplementation },
             { new OperationSignature(Multiplication, [GlyphScriptType.Int, GlyphScriptType.Int]), MultiplicationImplementation },
             { new OperationSignature(Division, [GlyphScriptType.Int, GlyphScriptType.Int]), DivisionImplementation },
-            { new OperationSignature(OperationKind.Power, [GlyphScriptType.Int, GlyphScriptType.Int]), PowerImplementation }
+            { new OperationSignature(OperationKind.Power, [GlyphScriptType.Int, GlyphScriptType.Int]), PowerImplementation },
+            { new OperationSignature(Print, [GlyphScriptType.Int]), PrintImplementation },
+            { new OperationSignature(Read, [GlyphScriptType.Int]), ReadImplementation }
         };
 }

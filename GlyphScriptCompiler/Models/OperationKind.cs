@@ -2,14 +2,15 @@ namespace GlyphScriptCompiler.Models;
 
 public enum OperationKind
 {
-    Assignment,
+    DefaultValue,
+    ParseImmediate,
+
     Addition,
     Subtraction,
     Multiplication,
     Division,
     Power,
+
     Print,
-    Read,
-    DefaultValue,
-    ParseImmediate
+    Read
 }

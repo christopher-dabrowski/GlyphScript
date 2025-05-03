@@ -140,65 +140,41 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitPrint(GlyphScriptParser.PrintContext context)
     {
+        const OperationKind operationKind = OperationKind.Print;
+
         var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
             throw new InvalidOperationException("Failed to create expression");
 
-        var value = expressionValue.Value;
-        var valueType = LLVM.TypeOf(value);
-        var valueKind = LLVM.GetTypeKind(valueType);
-        var printfFormatStr = GetPrintfFormatString(expressionValue.Type);
+        var operationSignature = new OperationSignature(operationKind, [expressionValue.Type]);
 
-        var printfFunc = LLVM.GetNamedFunction(LlvmModule, "printf");
+        var printOperation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (printOperation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
 
-        // To print float we need to convert it to double first
-        if (valueKind == LLVMTypeKind.LLVMFloatTypeKind)
-            value = LLVM.BuildFPExt(_llvmBuilder, value, LLVM.DoubleType(), string.Empty);
-
-        var args = new[] { LlvmHelper.GetStringPtr(_llvmBuilder, printfFormatStr), value };
-
-        LLVM.BuildCall(_llvmBuilder, printfFunc, args, "printf_call");
-        return null;
+        return printOperation(context, [expressionValue]);
     }
 
     public override object? VisitRead(GlyphScriptParser.ReadContext context)
     {
+        const OperationKind operationKind = OperationKind.Read;
+
         var id = context.ID().GetText();
 
         if (!_variables.TryGetValue(id, out var variable))
-        {
             throw new UndefinedVariableUsageException(context) { VariableName = id };
-        }
 
-        if (variable.Type == GlyphScriptType.String)
-        {
-            var mallocFunc = LLVM.GetNamedFunction(LlvmModule, "malloc");
-            var bufferSize = LLVM.ConstInt(LLVM.Int64Type(), 256, false);
-            var buffer = LLVM.BuildCall(_llvmBuilder, mallocFunc, [bufferSize], "string_buffer");
+        var operationSignature = new OperationSignature(operationKind, [variable.Type]);
 
-            LLVM.BuildStore(_llvmBuilder, buffer, variable.Value);
+        var readOperation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (readOperation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
 
-            var scanfFunc = LLVM.GetNamedFunction(LlvmModule, "scanf");
-            var scanfLineFormatStr = LLVM.GetNamedGlobal(LlvmModule, "strs_line");
+        var result = readOperation(context, [variable]) as GlyphScriptValue;
 
-            var args = new[] { LlvmHelper.GetStringPtr(_llvmBuilder, scanfLineFormatStr), buffer };
-            LLVM.BuildCall(_llvmBuilder, scanfFunc, args, "scanf_call");
+        if (result != null)
+            LLVM.BuildStore(_llvmBuilder, result.Value, variable.Value);
 
-            var loadedValue = LLVM.BuildLoad(_llvmBuilder, variable.Value, $"read_{id}");
-            return new GlyphScriptValue(loadedValue, variable.Type);
-        }
-        else
-        {
-            // For non-string types, use standard approach
-            var scanfFunc = LLVM.GetNamedFunction(LlvmModule, "scanf");
-            var scanfFormatStr = GetScanfFormatString(variable.Type);
-
-            var args = new[] { LlvmHelper.GetStringPtr(_llvmBuilder, scanfFormatStr), variable.Value };
-            LLVM.BuildCall(_llvmBuilder, scanfFunc, args, "scanf_call");
-
-            // Load the value to return
-            var loadedValue = LLVM.BuildLoad(_llvmBuilder, variable.Value, $"read_{id}");
-            return new GlyphScriptValue(loadedValue, variable.Type);
-        }
+        return result;
     }
 
     public override object? VisitImmediateValue(GlyphScriptParser.ImmediateValueContext context)
@@ -326,32 +302,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var mallocType = LLVM.FunctionType(i8PtrType, [LLVM.Int64Type()], false);
         LLVM.AddFunction(module, "malloc", mallocType);
-    }
-
-    private LLVMValueRef GetPrintfFormatString(GlyphScriptType glyphScriptType)
-    {
-        return glyphScriptType switch
-        {
-            GlyphScriptType.Int => LLVM.GetNamedGlobal(LlvmModule, "strp_int"),
-            GlyphScriptType.Long => LLVM.GetNamedGlobal(LlvmModule, "strp_long"),
-            GlyphScriptType.Float => LLVM.GetNamedGlobal(LlvmModule, "strp_float"),
-            GlyphScriptType.Double => LLVM.GetNamedGlobal(LlvmModule, "strp_double"),
-            GlyphScriptType.String => LLVM.GetNamedGlobal(LlvmModule, "strp_string"),
-            _ => throw new InvalidOperationException($"Unsupported type for printf: {glyphScriptType}")
-        };
-    }
-
-    private LLVMValueRef GetScanfFormatString(GlyphScriptType glyphScriptType)
-    {
-        return glyphScriptType switch
-        {
-            GlyphScriptType.Int => LLVM.GetNamedGlobal(LlvmModule, "strs_int"),
-            GlyphScriptType.Long => LLVM.GetNamedGlobal(LlvmModule, "strs_long"),
-            GlyphScriptType.Float => LLVM.GetNamedGlobal(LlvmModule, "strs_float"),
-            GlyphScriptType.Double => LLVM.GetNamedGlobal(LlvmModule, "strs_double"),
-            GlyphScriptType.String => LLVM.GetNamedGlobal(LlvmModule, "strs_string"),
-            _ => throw new InvalidOperationException($"Unsupported type for scanf: {glyphScriptType}")
-        };
     }
 
     public void Dispose()

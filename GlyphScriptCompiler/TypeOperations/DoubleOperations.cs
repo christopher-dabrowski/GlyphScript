@@ -118,6 +118,70 @@ public class DoubleOperations : IOperationProvider
         return new(powResult, GlyphScriptType.Double);
     }
 
+    public GlyphScriptValue? PrintImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException("Invalid number of parameters for print operation");
+
+        var value = parameters[0];
+
+        if (value.Type != GlyphScriptType.Double)
+            throw new InvalidOperationException("Invalid type for print operation");
+
+        // Get printf function
+        var printfFunc = LLVM.GetNamedFunction(_llvmModule, "printf");
+        if (printfFunc.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("printf function not found");
+
+        // Get format string for double printing
+        var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strp_double");
+        if (formatGlobal.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("Format string for double printing not found");
+
+        // Create GEP to get a pointer to the format string
+        var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
+
+        // Call printf with the format string and the double value
+        LLVM.BuildCall(_llvmBuilder, printfFunc, [formatPtr, value.Value], string.Empty);
+
+        return value;
+    }
+
+    public GlyphScriptValue? ReadImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException("Invalid number of parameters for read operation");
+
+        var variable = parameters[0];
+
+        if (variable.Type != GlyphScriptType.Double)
+            throw new InvalidOperationException("Invalid type for read operation");
+
+        // Get scanf function
+        var scanfFunc = LLVM.GetNamedFunction(_llvmModule, "scanf");
+        if (scanfFunc.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("scanf function not found");
+
+        // Get format string for double reading
+        var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strs_double");
+        if (formatGlobal.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("Format string for double reading not found");
+
+        // Create GEP to get a pointer to the format string
+        var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
+
+        // Create a temporary variable to store the read value
+        var tempVar = LLVM.BuildAlloca(_llvmBuilder, LLVM.DoubleType(), "temp_double");
+
+        // Call scanf with the format string and the address of the temporary variable
+        LLVM.BuildCall(_llvmBuilder, scanfFunc, [formatPtr, tempVar], string.Empty);
+
+        // Load the value from the temporary variable
+        var readValue = LLVM.BuildLoad(_llvmBuilder, tempVar, "read_double");
+
+        return new GlyphScriptValue(readValue, GlyphScriptType.Double);
+    }
+
     public GlyphScriptValue? ParseImmediateImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         var immediateValueContext = context as GlyphScriptParser.ImmediateValueContext
@@ -185,5 +249,9 @@ public class DoubleOperations : IOperationProvider
             { new OperationSignature(Division, [GlyphScriptType.Long, GlyphScriptType.Double]), DivisionImplementation },
             { new OperationSignature(OperationKind.Power, [GlyphScriptType.Double, GlyphScriptType.Long]), PowerImplementation },
             { new OperationSignature(OperationKind.Power, [GlyphScriptType.Long, GlyphScriptType.Double]), PowerImplementation },
+
+            // IO operations
+            { new OperationSignature(Print, [GlyphScriptType.Double]), PrintImplementation },
+            { new OperationSignature(Read, [GlyphScriptType.Double]), ReadImplementation }
         };
 }

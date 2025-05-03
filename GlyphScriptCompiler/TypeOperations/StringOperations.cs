@@ -116,6 +116,76 @@ public class StringOperations : IOperationProvider
         return null;
     }
 
+    public GlyphScriptValue? PrintImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException("Invalid number of parameters for print operation");
+
+        var value = parameters[0];
+
+        if (value.Type != GlyphScriptType.String)
+            throw new InvalidOperationException("Invalid type for print operation");
+
+        // Get printf function
+        var printfFunc = LLVM.GetNamedFunction(_llvmModule, "printf");
+        if (printfFunc.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("printf function not found");
+
+        // Get format string for string printing
+        var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strp_string");
+        if (formatGlobal.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("Format string for string printing not found");
+
+        // Create GEP to get a pointer to the format string
+        var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
+
+        // Call printf with the format string and the string value
+        LLVM.BuildCall(_llvmBuilder, printfFunc, [formatPtr, value.Value], string.Empty);
+
+        return value;
+    }
+
+    public GlyphScriptValue? ReadImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException("Invalid number of parameters for read operation");
+
+        var variable = parameters[0];
+
+        if (variable.Type != GlyphScriptType.String)
+            throw new InvalidOperationException("Invalid type for read operation");
+
+        // Get scanf function
+        var scanfFunc = LLVM.GetNamedFunction(_llvmModule, "scanf");
+        if (scanfFunc.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("scanf function not found");
+
+        // Get or declare malloc function
+        var mallocFunc = LLVM.GetNamedFunction(_llvmModule, "malloc");
+        if (mallocFunc.Pointer == IntPtr.Zero)
+        {
+            var mallocType = LLVM.FunctionType(LLVM.PointerType(LLVM.Int8Type(), 0), [LLVM.Int64Type()], false);
+            mallocFunc = LLVM.AddFunction(_llvmModule, "malloc", mallocType);
+        }
+
+        // Get format string for string reading (line-based)
+        var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strs_line");
+        if (formatGlobal.Pointer == IntPtr.Zero)
+            throw new InvalidOperationException("Format string for string reading not found");
+
+        // Create GEP to get a pointer to the format string
+        var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
+
+        // Allocate buffer for the string (max 1024 characters)
+        var bufferSize = LLVM.ConstInt(LLVM.Int64Type(), 1024, false);
+        var buffer = LLVM.BuildCall(_llvmBuilder, mallocFunc, [bufferSize], "string_buffer");
+
+        // Call scanf with the format string and the buffer
+        LLVM.BuildCall(_llvmBuilder, scanfFunc, [formatPtr, buffer], string.Empty);
+
+        return new GlyphScriptValue(buffer, GlyphScriptType.String);
+    }
+
     private LLVMValueRef CreateStringConstant(string value)
     {
         var isNullTerminated = value.LastOrDefault() == '\0';
@@ -188,6 +258,8 @@ public class StringOperations : IOperationProvider
         {
             { new OperationSignature(DefaultValue, [GlyphScriptType.String]), DefaultValueImplementation },
             { new OperationSignature(Addition, [GlyphScriptType.String, GlyphScriptType.String]), AdditionImplementation },
-            { new OperationSignature(ParseImmediate, [GlyphScriptType.String]), ParseImmediateImplementation }
+            { new OperationSignature(ParseImmediate, [GlyphScriptType.String]), ParseImmediateImplementation },
+            { new OperationSignature(Print, [GlyphScriptType.String]), PrintImplementation },
+            { new OperationSignature(Read, [GlyphScriptType.String]), ReadImplementation }
         };
 }
