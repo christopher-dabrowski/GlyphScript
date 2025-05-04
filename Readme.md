@@ -26,8 +26,8 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 - [ ] obsługa macierzy liczb
 - [x] obsługa wartości logicznych
   - [x] AND, OR, XOR, NEG - [BoolOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/BoolOperationsTests.cs)
-  - [x] short-circuit boolean evaluation
-- [x] obsługa liczb o różnej precyzji [BoolOperations.cs](GlyphScriptCompiler/TypeOperations/BoolOperations.cs)
+  - [x] short-circuit boolean evaluation [BoolOperations.cs](GlyphScriptCompiler/TypeOperations/BoolOperations.cs)
+- [x] obsługa liczb o różnej precyzji
 - [x] obsługa typu ciąg znaków [StringOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/StringOperationsTests.cs)
 
 ## Decyzje Architektoniczne
