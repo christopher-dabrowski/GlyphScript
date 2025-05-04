@@ -28,7 +28,7 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
   - [x] AND, OR, XOR, NEG - [BoolOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/BoolOperationsTests.cs)
   - [x] short-circuit boolean evaluation
 - [x] obsługa liczb o różnej precyzji [BoolOperations.cs](GlyphScriptCompiler/TypeOperations/BoolOperations.cs)
-- [ ] obsługa typu ciąg znaków
+- [x] obsługa typu ciąg znaków [StringOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/StringOperationsTests.cs)
 
 ## Decyzje Architektoniczne
 
