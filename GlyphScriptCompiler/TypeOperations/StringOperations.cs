@@ -41,7 +41,6 @@ public class StringOperations : IOperationProvider
 
     public GlyphScriptValue Concatenate(GlyphScriptValue left, GlyphScriptValue right)
     {
-        // Get or declare strcat function
         var strcatFunc = LLVM.GetNamedFunction(_llvmModule, "strcat");
         if (strcatFunc.Pointer == IntPtr.Zero)
         {
@@ -50,7 +49,6 @@ public class StringOperations : IOperationProvider
             strcatFunc = LLVM.AddFunction(_llvmModule, "strcat", strcatType);
         }
 
-        // Get or declare strlen function
         var strlenFunc = LLVM.GetNamedFunction(_llvmModule, "strlen");
         if (strlenFunc.Pointer == IntPtr.Zero)
         {
@@ -59,7 +57,6 @@ public class StringOperations : IOperationProvider
             strlenFunc = LLVM.AddFunction(_llvmModule, "strlen", strlenType);
         }
 
-        // Get or declare strcpy function
         var strcpyFunc = LLVM.GetNamedFunction(_llvmModule, "strcpy");
         if (strcpyFunc.Pointer == IntPtr.Zero)
         {
@@ -68,7 +65,6 @@ public class StringOperations : IOperationProvider
             strcpyFunc = LLVM.AddFunction(_llvmModule, "strcpy", strcpyType);
         }
 
-        // Get or declare malloc function
         var mallocFunc = LLVM.GetNamedFunction(_llvmModule, "malloc");
         if (mallocFunc.Pointer == IntPtr.Zero)
         {
@@ -87,10 +83,8 @@ public class StringOperations : IOperationProvider
         // Allocate buffer for the concatenated string
         var buffer = LLVM.BuildCall(_llvmBuilder, mallocFunc, [bufferSize], "concat_buffer");
 
-        // Copy first string to buffer
         LLVM.BuildCall(_llvmBuilder, strcpyFunc, [buffer, left.Value], "copy_left");
 
-        // Concatenate second string
         var result = LLVM.BuildCall(_llvmBuilder, strcatFunc, [buffer, right.Value], "concat_result");
 
         return new GlyphScriptValue(result, GlyphScriptType.String);
@@ -109,8 +103,8 @@ public class StringOperations : IOperationProvider
             var value = rawValue.Substring(1, rawValue.Length - 2);
             value = System.Text.RegularExpressions.Regex.Unescape(value);
 
-            var stringPtr = CreateStringConstant(_llvmModule, $"str_const_{_stringConstCounter++}", value);
-            return new GlyphScriptValue(GetStringPtr(_llvmBuilder, stringPtr), GlyphScriptType.String);
+            var stringPtr = LlvmHelper.CreateStringConstant(_llvmModule, $"str_const_{_stringConstCounter++}", value);
+            return new GlyphScriptValue(LlvmHelper.GetStringPtr(_llvmBuilder, stringPtr), GlyphScriptType.String);
         }
 
         return null;
@@ -126,20 +120,16 @@ public class StringOperations : IOperationProvider
         if (value.Type != GlyphScriptType.String)
             throw new InvalidOperationException("Invalid type for print operation");
 
-        // Get printf function
         var printfFunc = LLVM.GetNamedFunction(_llvmModule, "printf");
         if (printfFunc.Pointer == IntPtr.Zero)
             throw new InvalidOperationException("printf function not found");
 
-        // Get format string for string printing
         var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strp_string");
         if (formatGlobal.Pointer == IntPtr.Zero)
             throw new InvalidOperationException("Format string for string printing not found");
 
-        // Create GEP to get a pointer to the format string
         var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
 
-        // Call printf with the format string and the string value
         LLVM.BuildCall(_llvmBuilder, printfFunc, [formatPtr, value.Value], string.Empty);
 
         return value;
@@ -155,12 +145,10 @@ public class StringOperations : IOperationProvider
         if (variable.Type != GlyphScriptType.String)
             throw new InvalidOperationException("Invalid type for read operation");
 
-        // Get scanf function
         var scanfFunc = LLVM.GetNamedFunction(_llvmModule, "scanf");
         if (scanfFunc.Pointer == IntPtr.Zero)
             throw new InvalidOperationException("scanf function not found");
 
-        // Get or declare malloc function
         var mallocFunc = LLVM.GetNamedFunction(_llvmModule, "malloc");
         if (mallocFunc.Pointer == IntPtr.Zero)
         {
@@ -168,89 +156,18 @@ public class StringOperations : IOperationProvider
             mallocFunc = LLVM.AddFunction(_llvmModule, "malloc", mallocType);
         }
 
-        // Get format string for string reading (line-based)
         var formatGlobal = LLVM.GetNamedGlobal(_llvmModule, "strs_line");
         if (formatGlobal.Pointer == IntPtr.Zero)
             throw new InvalidOperationException("Format string for string reading not found");
 
-        // Create GEP to get a pointer to the format string
         var formatPtr = LlvmHelper.GetStringPtr(_llvmBuilder, formatGlobal);
 
-        // Allocate buffer for the string (max 1024 characters)
         var bufferSize = LLVM.ConstInt(LLVM.Int64Type(), 1024, false);
         var buffer = LLVM.BuildCall(_llvmBuilder, mallocFunc, [bufferSize], "string_buffer");
 
-        // Call scanf with the format string and the buffer
         LLVM.BuildCall(_llvmBuilder, scanfFunc, [formatPtr, buffer], string.Empty);
 
         return new GlyphScriptValue(buffer, GlyphScriptType.String);
-    }
-
-    private LLVMValueRef CreateStringConstant(string value)
-    {
-        var isNullTerminated = value.LastOrDefault() == '\0';
-        if (!isNullTerminated)
-            value += '\0';
-
-        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
-        var length = (uint)bytes.Length;
-
-        var i8Type = LLVM.Int8Type();
-        var arrayType = LLVM.ArrayType(i8Type, length);
-
-        var name = $"str_{_stringConstCounter++}";
-        var global = LLVM.AddGlobal(_llvmModule, arrayType, name);
-        LLVM.SetLinkage(global, LLVMLinkage.LLVMExternalLinkage);
-        LLVM.SetGlobalConstant(global, true);
-
-        var stringConstant = LLVM.ConstString(value, (uint)value.Length, true);
-        LLVM.SetInitializer(global, stringConstant);
-
-        return GetStringPtr(global);
-    }
-
-    private LLVMValueRef CreateStringConstant(LLVMModuleRef module, string name, string value)
-    {
-        var isNullTerminated = value.LastOrDefault() == '\0';
-        if (!isNullTerminated)
-            value += '\0';
-
-        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
-        var length = (uint)bytes.Length;
-
-        var i8Type = LLVM.Int8Type();
-        var arrayType = LLVM.ArrayType(i8Type, length);
-
-        var global = LLVM.AddGlobal(module, arrayType, name);
-        LLVM.SetLinkage(global, LLVMLinkage.LLVMExternalLinkage);
-        LLVM.SetGlobalConstant(global, true);
-
-        var stringConstant = LLVM.ConstString(value, (uint)value.Length, true);
-        LLVM.SetInitializer(global, stringConstant);
-
-        return global;
-    }
-
-    private LLVMValueRef GetStringPtr(LLVMValueRef stringGlobal)
-    {
-        LLVMValueRef[] indices =
-        [
-            LLVM.ConstInt(LLVM.Int32Type(), 0, false),
-            LLVM.ConstInt(LLVM.Int32Type(), 0, false)
-        ];
-
-        return LLVM.BuildGEP(_llvmBuilder, stringGlobal, indices, string.Empty);
-    }
-
-    private LLVMValueRef GetStringPtr(LLVMBuilderRef builder, LLVMValueRef stringGlobal)
-    {
-        LLVMValueRef[] indices =
-        [
-            LLVM.ConstInt(LLVM.Int32Type(), 0, false),
-            LLVM.ConstInt(LLVM.Int32Type(), 0, false)
-        ];
-
-        return LLVM.BuildGEP(builder, stringGlobal, indices, string.Empty);
     }
 
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
