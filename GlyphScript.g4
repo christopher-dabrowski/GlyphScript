@@ -54,6 +54,8 @@ immediateValue
     | FLOAT_LITERAL
     | DOUBLE_LITERAL
     | STRING_LITERAL
+    | TRUE_LITERAL
+    | FALSE_LITERAL
     ;
 
 type
@@ -62,6 +64,7 @@ type
     | FLOAT
     | DOUBLE
     | STRING_TYPE
+    | BOOLEAN_TYPE
     ;
 
 COMMENT
@@ -90,6 +93,10 @@ STRING_TYPE
 
 FLOAT
     : FLOAT_SYMBOL
+    ;
+
+BOOLEAN_TYPE
+    : OK_EMOJI
     ;
 
 WRITE
@@ -122,6 +129,16 @@ DOUBLE_LITERAL
 
 FLOAT_LITERAL
     : [0-9]+ ('.' [0-9]+)? [fF]?
+    ;
+
+TRUE_LITERAL
+    : CHECK_MARK_EMOJI
+    | 'true'
+    ;
+
+FALSE_LITERAL
+    : X_EMOJI
+    | 'false'
     ;
 
 ADDITION_SYMBOL
@@ -221,4 +238,21 @@ fragment LETTERS_SYMBOL
     | ':abcd:'
     | '🔠'
     | ':capital_abcd:'
+    ;
+
+fragment OK_EMOJI
+    : '🆗'
+    | ':ok:'
+    ;
+
+fragment CHECK_MARK_EMOJI
+    : '✅'
+    | ':white_check_mark:'
+    | '✔️'
+    | ':heavy_check_mark:'
+    ;
+
+fragment X_EMOJI
+    : '❌'
+    | ':x:'
     ;

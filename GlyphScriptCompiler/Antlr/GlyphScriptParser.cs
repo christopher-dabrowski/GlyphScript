@@ -38,10 +38,11 @@ public partial class GlyphScriptParser : Parser {
 	protected static PredictionContextCache sharedContextCache = new PredictionContextCache();
 	public const int
 		T__0=1, T__1=2, T__2=3, COMMENT=4, MULTILINE_COMMENT=5, LONG=6, INT=7, 
-		DOUBLE=8, STRING_TYPE=9, FLOAT=10, WRITE=11, READ=12, STRING_LITERAL=13, 
-		ID=14, LONG_LITERAL=15, INT_LITERAL=16, DOUBLE_LITERAL=17, FLOAT_LITERAL=18, 
-		ADDITION_SYMBOL=19, SUBTRACTION_SYMBOL=20, MULTIPLICATION_SYMBOL=21, POWER_SYMBOL=22, 
-		DIVISION_SYMBOL=23, NEWLINE=24, WHITE_SPACE=25;
+		DOUBLE=8, STRING_TYPE=9, FLOAT=10, BOOLEAN_TYPE=11, WRITE=12, READ=13, 
+		STRING_LITERAL=14, ID=15, LONG_LITERAL=16, INT_LITERAL=17, DOUBLE_LITERAL=18, 
+		FLOAT_LITERAL=19, TRUE_LITERAL=20, FALSE_LITERAL=21, ADDITION_SYMBOL=22, 
+		SUBTRACTION_SYMBOL=23, MULTIPLICATION_SYMBOL=24, POWER_SYMBOL=25, DIVISION_SYMBOL=26, 
+		NEWLINE=27, WHITE_SPACE=28;
 	public const int
 		RULE_program = 0, RULE_statement = 1, RULE_expression = 2, RULE_print = 3, 
 		RULE_read = 4, RULE_assignment = 5, RULE_declaration = 6, RULE_defaultDeclaration = 7, 
@@ -56,10 +57,11 @@ public partial class GlyphScriptParser : Parser {
 	};
 	private static readonly string[] _SymbolicNames = {
 		null, null, null, null, "COMMENT", "MULTILINE_COMMENT", "LONG", "INT", 
-		"DOUBLE", "STRING_TYPE", "FLOAT", "WRITE", "READ", "STRING_LITERAL", "ID", 
-		"LONG_LITERAL", "INT_LITERAL", "DOUBLE_LITERAL", "FLOAT_LITERAL", "ADDITION_SYMBOL", 
-		"SUBTRACTION_SYMBOL", "MULTIPLICATION_SYMBOL", "POWER_SYMBOL", "DIVISION_SYMBOL", 
-		"NEWLINE", "WHITE_SPACE"
+		"DOUBLE", "STRING_TYPE", "FLOAT", "BOOLEAN_TYPE", "WRITE", "READ", "STRING_LITERAL", 
+		"ID", "LONG_LITERAL", "INT_LITERAL", "DOUBLE_LITERAL", "FLOAT_LITERAL", 
+		"TRUE_LITERAL", "FALSE_LITERAL", "ADDITION_SYMBOL", "SUBTRACTION_SYMBOL", 
+		"MULTIPLICATION_SYMBOL", "POWER_SYMBOL", "DIVISION_SYMBOL", "NEWLINE", 
+		"WHITE_SPACE"
 	};
 	public static readonly IVocabulary DefaultVocabulary = new Vocabulary(_LiteralNames, _SymbolicNames);
 
@@ -137,7 +139,7 @@ public partial class GlyphScriptParser : Parser {
 					State = 23;
 					ErrorHandler.Sync(this);
 					_la = TokenStream.LA(1);
-					if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 24512L) != 0)) {
+					if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 49088L) != 0)) {
 						{
 						State = 22;
 						statement();
@@ -156,7 +158,7 @@ public partial class GlyphScriptParser : Parser {
 			State = 32;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 24512L) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 49088L) != 0)) {
 				{
 				State = 31;
 				statement();
@@ -217,6 +219,7 @@ public partial class GlyphScriptParser : Parser {
 			case DOUBLE:
 			case STRING_TYPE:
 			case FLOAT:
+			case BOOLEAN_TYPE:
 				EnterOuterAlt(_localctx, 1);
 				{
 				State = 36;
@@ -395,6 +398,8 @@ public partial class GlyphScriptParser : Parser {
 			case INT_LITERAL:
 			case DOUBLE_LITERAL:
 			case FLOAT_LITERAL:
+			case TRUE_LITERAL:
+			case FALSE_LITERAL:
 				{
 				_localctx = new ValueExpContext(_localctx);
 				Context = _localctx;
@@ -776,6 +781,8 @@ public partial class GlyphScriptParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FLOAT_LITERAL() { return GetToken(GlyphScriptParser.FLOAT_LITERAL, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DOUBLE_LITERAL() { return GetToken(GlyphScriptParser.DOUBLE_LITERAL, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STRING_LITERAL() { return GetToken(GlyphScriptParser.STRING_LITERAL, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode TRUE_LITERAL() { return GetToken(GlyphScriptParser.TRUE_LITERAL, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FALSE_LITERAL() { return GetToken(GlyphScriptParser.FALSE_LITERAL, 0); }
 		public ImmediateValueContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
@@ -799,7 +806,7 @@ public partial class GlyphScriptParser : Parser {
 			{
 			State = 87;
 			_la = TokenStream.LA(1);
-			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 499712L) != 0)) ) {
+			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 4145152L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
@@ -825,6 +832,7 @@ public partial class GlyphScriptParser : Parser {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode FLOAT() { return GetToken(GlyphScriptParser.FLOAT, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode DOUBLE() { return GetToken(GlyphScriptParser.DOUBLE, 0); }
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode STRING_TYPE() { return GetToken(GlyphScriptParser.STRING_TYPE, 0); }
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode BOOLEAN_TYPE() { return GetToken(GlyphScriptParser.BOOLEAN_TYPE, 0); }
 		public TypeContext(ParserRuleContext parent, int invokingState)
 			: base(parent, invokingState)
 		{
@@ -848,7 +856,7 @@ public partial class GlyphScriptParser : Parser {
 			{
 			State = 89;
 			_la = TokenStream.LA(1);
-			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 1984L) != 0)) ) {
+			if ( !((((_la) & ~0x3f) == 0 && ((1L << _la) & 4032L) != 0)) ) {
 			ErrorHandler.RecoverInline(this);
 			}
 			else {
@@ -884,31 +892,31 @@ public partial class GlyphScriptParser : Parser {
 	}
 
 	private static int[] _serializedATN = {
-		4,1,25,92,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,6,2,7,
+		4,1,28,92,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,6,2,7,
 		7,7,2,8,7,8,2,9,7,9,2,10,7,10,1,0,3,0,24,8,0,1,0,5,0,27,8,0,10,0,12,0,
 		30,9,0,1,0,3,0,33,8,0,1,0,1,0,1,1,1,1,1,1,1,1,3,1,41,8,1,1,2,1,2,1,2,1,
 		2,1,2,1,2,1,2,3,2,50,8,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,1,2,5,2,61,8,
 		2,10,2,12,2,64,9,2,1,3,1,3,1,3,1,4,1,4,1,4,1,5,1,5,1,5,1,5,1,6,1,6,3,6,
 		78,8,6,1,7,1,7,1,7,1,8,1,8,1,8,1,8,1,8,1,9,1,9,1,10,1,10,1,10,1,28,1,4,
-		11,0,2,4,6,8,10,12,14,16,18,20,0,4,2,0,21,21,23,23,1,0,19,20,2,0,13,13,
-		15,18,1,0,6,10,92,0,28,1,0,0,0,2,40,1,0,0,0,4,49,1,0,0,0,6,65,1,0,0,0,
+		11,0,2,4,6,8,10,12,14,16,18,20,0,4,2,0,24,24,26,26,1,0,22,23,2,0,14,14,
+		16,21,1,0,6,11,92,0,28,1,0,0,0,2,40,1,0,0,0,4,49,1,0,0,0,6,65,1,0,0,0,
 		8,68,1,0,0,0,10,71,1,0,0,0,12,77,1,0,0,0,14,79,1,0,0,0,16,82,1,0,0,0,18,
 		87,1,0,0,0,20,89,1,0,0,0,22,24,3,2,1,0,23,22,1,0,0,0,23,24,1,0,0,0,24,
-		25,1,0,0,0,25,27,5,24,0,0,26,23,1,0,0,0,27,30,1,0,0,0,28,29,1,0,0,0,28,
+		25,1,0,0,0,25,27,5,27,0,0,26,23,1,0,0,0,27,30,1,0,0,0,28,29,1,0,0,0,28,
 		26,1,0,0,0,29,32,1,0,0,0,30,28,1,0,0,0,31,33,3,2,1,0,32,31,1,0,0,0,32,
 		33,1,0,0,0,33,34,1,0,0,0,34,35,5,0,0,1,35,1,1,0,0,0,36,41,3,12,6,0,37,
 		41,3,6,3,0,38,41,3,10,5,0,39,41,3,8,4,0,40,36,1,0,0,0,40,37,1,0,0,0,40,
 		38,1,0,0,0,40,39,1,0,0,0,41,3,1,0,0,0,42,43,6,2,-1,0,43,44,5,1,0,0,44,
-		45,3,4,2,0,45,46,5,2,0,0,46,50,1,0,0,0,47,50,3,18,9,0,48,50,5,14,0,0,49,
+		45,3,4,2,0,45,46,5,2,0,0,46,50,1,0,0,0,47,50,3,18,9,0,48,50,5,15,0,0,49,
 		42,1,0,0,0,49,47,1,0,0,0,49,48,1,0,0,0,50,62,1,0,0,0,51,52,10,5,0,0,52,
-		53,5,22,0,0,53,61,3,4,2,5,54,55,10,4,0,0,55,56,7,0,0,0,56,61,3,4,2,5,57,
+		53,5,25,0,0,53,61,3,4,2,5,54,55,10,4,0,0,55,56,7,0,0,0,56,61,3,4,2,5,57,
 		58,10,3,0,0,58,59,7,1,0,0,59,61,3,4,2,4,60,51,1,0,0,0,60,54,1,0,0,0,60,
 		57,1,0,0,0,61,64,1,0,0,0,62,60,1,0,0,0,62,63,1,0,0,0,63,5,1,0,0,0,64,62,
-		1,0,0,0,65,66,5,11,0,0,66,67,3,4,2,0,67,7,1,0,0,0,68,69,5,12,0,0,69,70,
-		5,14,0,0,70,9,1,0,0,0,71,72,5,14,0,0,72,73,5,3,0,0,73,74,3,4,2,0,74,11,
+		1,0,0,0,65,66,5,12,0,0,66,67,3,4,2,0,67,7,1,0,0,0,68,69,5,13,0,0,69,70,
+		5,15,0,0,70,9,1,0,0,0,71,72,5,15,0,0,72,73,5,3,0,0,73,74,3,4,2,0,74,11,
 		1,0,0,0,75,78,3,14,7,0,76,78,3,16,8,0,77,75,1,0,0,0,77,76,1,0,0,0,78,13,
-		1,0,0,0,79,80,3,20,10,0,80,81,5,14,0,0,81,15,1,0,0,0,82,83,3,20,10,0,83,
-		84,5,14,0,0,84,85,5,3,0,0,85,86,3,4,2,0,86,17,1,0,0,0,87,88,7,2,0,0,88,
+		1,0,0,0,79,80,3,20,10,0,80,81,5,15,0,0,81,15,1,0,0,0,82,83,3,20,10,0,83,
+		84,5,15,0,0,84,85,5,3,0,0,85,86,3,4,2,0,86,17,1,0,0,0,87,88,7,2,0,0,88,
 		19,1,0,0,0,89,90,7,3,0,0,90,21,1,0,0,0,8,23,28,32,40,49,60,62,77
 	};
 
