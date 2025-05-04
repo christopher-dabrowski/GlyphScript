@@ -128,12 +128,113 @@ public class BoolOperations : IOperationProvider
         throw new InvalidOperationException("Invalid context for parsing boolean value");
     }
 
+    // AND operation (uses multiplication symbol)
+    public GlyphScriptValue? MultiplicationImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 2)
+            throw new InvalidOperationException("Invalid number of parameters for AND operation");
+
+        var left = parameters[0];
+        var right = parameters[1];
+
+        if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid types for AND operation");
+
+        return And(left, right);
+    }
+
+    public GlyphScriptValue And(GlyphScriptValue left, GlyphScriptValue right)
+    {
+        if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid types for AND operation");
+
+        var result = LLVM.BuildAnd(_llvmBuilder, left.Value, right.Value, "bool_and");
+        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+    }
+
+    // OR operation (uses addition symbol)
+    public GlyphScriptValue? AdditionImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 2)
+            throw new InvalidOperationException("Invalid number of parameters for OR operation");
+
+        var left = parameters[0];
+        var right = parameters[1];
+
+        if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid types for OR operation");
+
+        return Or(left, right);
+    }
+
+    public GlyphScriptValue Or(GlyphScriptValue left, GlyphScriptValue right)
+    {
+        if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid types for OR operation");
+
+        var result = LLVM.BuildOr(_llvmBuilder, left.Value, right.Value, "bool_or");
+        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+    }
+
+    // XOR operation
+    public GlyphScriptValue? XorImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 2)
+            throw new InvalidOperationException("Invalid number of parameters for XOR operation");
+
+        var left = parameters[0];
+        var right = parameters[1];
+
+        if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid types for XOR operation");
+
+        return Xor(left, right);
+    }
+
+    public GlyphScriptValue Xor(GlyphScriptValue left, GlyphScriptValue right)
+    {
+        if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid types for XOR operation");
+
+        var result = LLVM.BuildXor(_llvmBuilder, left.Value, right.Value, "bool_xor");
+        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+    }
+
+    // NOT operation
+    public GlyphScriptValue? NotImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 1)
+            throw new InvalidOperationException("Invalid number of parameters for NOT operation");
+
+        var value = parameters[0];
+
+        if (value.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid type for NOT operation");
+
+        return Not(value);
+    }
+
+    public GlyphScriptValue Not(GlyphScriptValue value)
+    {
+        if (value.Type != GlyphScriptType.Boolean)
+            throw new InvalidOperationException("Invalid type for NOT operation");
+
+        var result = LLVM.BuildNot(_llvmBuilder, value.Value, "bool_not");
+        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+    }
+
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>()
         {
             { new OperationSignature(DefaultValue, [GlyphScriptType.Boolean]), DefaultValueImplementation },
             { new OperationSignature(ParseImmediate, [GlyphScriptType.Boolean]), ParseImmediateImplementation },
             { new OperationSignature(Print, [GlyphScriptType.Boolean]), PrintImplementation },
-            { new OperationSignature(Read, [GlyphScriptType.Boolean]), ReadImplementation }
+            { new OperationSignature(Read, [GlyphScriptType.Boolean]), ReadImplementation },
+
+            // Boolean operations
+            { new OperationSignature(Multiplication, [GlyphScriptType.Boolean, GlyphScriptType.Boolean]), MultiplicationImplementation },
+            { new OperationSignature(Addition, [GlyphScriptType.Boolean, GlyphScriptType.Boolean]), AdditionImplementation },
+            { new OperationSignature(OperationKind.Not, [GlyphScriptType.Boolean]), NotImplementation },
+            { new OperationSignature(OperationKind.Xor, [GlyphScriptType.Boolean, GlyphScriptType.Boolean]), XorImplementation }
         };
 }

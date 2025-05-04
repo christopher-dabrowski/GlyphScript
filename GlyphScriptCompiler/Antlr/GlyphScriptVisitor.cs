@@ -45,12 +45,26 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitStatement([NotNull] GlyphScriptParser.StatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>notExpr</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitNotExpr([NotNull] GlyphScriptParser.NotExprContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>powerExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitPowerExp([NotNull] GlyphScriptParser.PowerExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>xorExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitXorExp([NotNull] GlyphScriptParser.XorExpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>mulDivExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.

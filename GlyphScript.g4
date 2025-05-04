@@ -16,9 +16,11 @@ statement
 
 expression
     : '(' expression ')'                                              # parenthesisExp
+    | NOT_SYMBOL expression                                           # notExpr
     | <assoc = right> expression POWER_SYMBOL expression              # powerExp
     | expression (MULTIPLICATION_SYMBOL | DIVISION_SYMBOL) expression # mulDivExp
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
+    | expression XOR_SYMBOL expression                                # xorExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
     ;
@@ -163,6 +165,14 @@ DIVISION_SYMBOL
     | DIVISION_EMOJI
     ;
 
+NOT_SYMBOL
+    : NO_ENTRY_SIGN_EMOJI
+    ;
+
+XOR_SYMBOL
+    : CROSSED_SWORDS_EMOJI
+    ;
+
 ID
     : [a-zA-Z_] [a-zA-Z_0-9]*
     ;
@@ -255,4 +265,14 @@ fragment CHECK_MARK_EMOJI
 fragment X_EMOJI
     : '❌'
     | ':x:'
+    ;
+
+fragment CROSSED_SWORDS_EMOJI
+    : '⚔️'
+    | ':crossed_swords:'
+    ;
+
+fragment NO_ENTRY_SIGN_EMOJI
+    : '🚫'
+    | ':no_entry_sign:'
     ;

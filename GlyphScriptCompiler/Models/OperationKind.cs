@@ -10,6 +10,8 @@ public enum OperationKind
     Multiplication,
     Division,
     Power,
+    Not,
+    Xor,
 
     Print,
     Read

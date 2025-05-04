@@ -267,6 +267,40 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return new GlyphScriptValue(LLVM.BuildLoad(_llvmBuilder, variable.Value, id), variable.Type);
     }
 
+    public override object? VisitNotExpr(GlyphScriptParser.NotExprContext context)
+    {
+        const OperationKind operationKind = OperationKind.Not;
+
+        var value = Visit(context.expression()) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the expression");
+
+        var operationSignature = new OperationSignature(operationKind, [value.Type]);
+
+        var operation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (operation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
+
+        return operation(context, [value]);
+    }
+
+    public override object? VisitXorExp(GlyphScriptParser.XorExpContext context)
+    {
+        const OperationKind operationKind = OperationKind.Xor;
+
+        var leftValue = Visit(context.expression(0)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the left expression");
+        var rightValue = Visit(context.expression(1)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the right expression");
+
+        var operationSignature = new OperationSignature(operationKind, [leftValue.Type, rightValue.Type]);
+
+        var operation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (operation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
+
+        return operation(context, [leftValue, rightValue]);
+    }
+
     private static GlyphScriptType GetTypeFromContext(GlyphScriptParser.TypeContext context)
     {
         if (context.INT() != null) return GlyphScriptType.Int;
