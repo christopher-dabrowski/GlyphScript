@@ -111,10 +111,6 @@ STRING_LITERAL
     : '"' STRING_CHAR* '"'
     ;
 
-ID
-    : [a-zA-Z_] [a-zA-Z_0-9]*
-    ;
-
 LONG_LITERAL
     : [0-9]+ [lL]
     ;
@@ -165,6 +161,10 @@ POWER_SYMBOL
 DIVISION_SYMBOL
     : '/'
     | DIVISION_EMOJI
+    ;
+
+ID
+    : [a-zA-Z_] [a-zA-Z_0-9]*
     ;
 
 NEWLINE

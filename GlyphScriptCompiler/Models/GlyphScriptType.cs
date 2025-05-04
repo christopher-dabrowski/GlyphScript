@@ -6,5 +6,6 @@ public enum GlyphScriptType
     Long,
     Float,
     Double,
-    String
+    String,
+    Boolean
 }

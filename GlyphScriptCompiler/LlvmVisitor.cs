@@ -24,7 +24,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             new LongOperations(llvmModule, _llvmBuilder),
             new FloatOperations(llvmModule, _llvmBuilder),
             new DoubleOperations(llvmModule, _llvmBuilder),
-            new StringOperations(llvmModule, _llvmBuilder)
+            new StringOperations(llvmModule, _llvmBuilder),
+            new BoolOperations(llvmModule, _llvmBuilder)
         ];
 
         foreach (var provider in initialOperationProviders)
@@ -188,6 +189,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             if (context.FLOAT_LITERAL() != null) return GlyphScriptType.Float;
             if (context.DOUBLE_LITERAL() != null) return GlyphScriptType.Double;
             if (context.STRING_LITERAL() != null) return GlyphScriptType.String;
+            if (context.TRUE_LITERAL() != null || context.FALSE_LITERAL() != null) return GlyphScriptType.Boolean;
             throw new InvalidOperationException("Invalid immediate value");
         }
 
@@ -272,6 +274,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.FLOAT() != null) return GlyphScriptType.Float;
         if (context.DOUBLE() != null) return GlyphScriptType.Double;
         if (context.STRING_TYPE() != null) return GlyphScriptType.String;
+        if (context.BOOLEAN_TYPE() != null) return GlyphScriptType.Boolean;
         throw new InvalidOperationException("Invalid type");
     }
 
@@ -284,6 +287,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             GlyphScriptType.Float => LLVM.FloatType(),
             GlyphScriptType.Double => LLVM.DoubleType(),
             GlyphScriptType.String => LLVM.PointerType(LLVM.Int8Type(), 0),
+            GlyphScriptType.Boolean => LLVM.Int1Type(),
             _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
     }
