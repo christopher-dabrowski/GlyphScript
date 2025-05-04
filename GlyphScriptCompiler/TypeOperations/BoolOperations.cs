@@ -128,7 +128,6 @@ public class BoolOperations : IOperationProvider
         throw new InvalidOperationException("Invalid context for parsing boolean value");
     }
 
-    // AND operation (uses multiplication symbol)
     public GlyphScriptValue? MultiplicationImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
@@ -145,14 +144,32 @@ public class BoolOperations : IOperationProvider
 
     public GlyphScriptValue And(GlyphScriptValue left, GlyphScriptValue right)
     {
-        if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
-            throw new InvalidOperationException("Invalid types for AND operation");
+        var currentBlock = LLVM.GetInsertBlock(_llvmBuilder);
+        var function = LLVM.GetBasicBlockParent(currentBlock);
 
-        var result = LLVM.BuildAnd(_llvmBuilder, left.Value, right.Value, "bool_and");
-        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+        var rightOperandBlock = LLVM.AppendBasicBlock(function, "and_right_operand");
+        var mergeBlock = LLVM.AppendBasicBlock(function, "and_merge");
+
+        // If left is false, short-circuit and return false
+        // Otherwise, evaluate the right operand
+        LLVM.BuildCondBr(_llvmBuilder, left.Value, rightOperandBlock, mergeBlock);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+        var phi = LLVM.BuildPhi(_llvmBuilder, LLVM.Int1Type(), "and_result");
+
+        LLVM.AddIncoming(phi, [LLVM.ConstInt(LLVM.Int1Type(), 0, false)], [currentBlock], 1u);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, rightOperandBlock);
+        LLVM.BuildBr(_llvmBuilder, mergeBlock);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+        LLVM.AddIncoming(phi, [right.Value], [rightOperandBlock], 1u);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+
+        return new GlyphScriptValue(phi, GlyphScriptType.Boolean);
     }
 
-    // OR operation (uses addition symbol)
     public GlyphScriptValue? AdditionImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
@@ -172,11 +189,30 @@ public class BoolOperations : IOperationProvider
         if (left.Type != GlyphScriptType.Boolean || right.Type != GlyphScriptType.Boolean)
             throw new InvalidOperationException("Invalid types for OR operation");
 
-        var result = LLVM.BuildOr(_llvmBuilder, left.Value, right.Value, "bool_or");
-        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+        var currentBlock = LLVM.GetInsertBlock(_llvmBuilder);
+        var function = LLVM.GetBasicBlockParent(currentBlock);
+
+        var rightOperandBlock = LLVM.AppendBasicBlock(function, "or_right_operand");
+        var mergeBlock = LLVM.AppendBasicBlock(function, "or_merge");
+
+        // If left is true, short-circuit and return true
+        // Otherwise, evaluate the right operand
+        LLVM.BuildCondBr(_llvmBuilder, left.Value, mergeBlock, rightOperandBlock);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+        var phi = LLVM.BuildPhi(_llvmBuilder, LLVM.Int1Type(), "or_result");
+
+        LLVM.AddIncoming(phi, [LLVM.ConstInt(LLVM.Int1Type(), 1, false)], [currentBlock], 1u);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, rightOperandBlock);
+        LLVM.BuildBr(_llvmBuilder, mergeBlock);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+        LLVM.AddIncoming(phi, [right.Value], [rightOperandBlock], 1u);
+
+        return new GlyphScriptValue(phi, GlyphScriptType.Boolean);
     }
 
-    // XOR operation
     public GlyphScriptValue? XorImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 2)
@@ -200,7 +236,6 @@ public class BoolOperations : IOperationProvider
         return new GlyphScriptValue(result, GlyphScriptType.Boolean);
     }
 
-    // NOT operation
     public GlyphScriptValue? NotImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
     {
         if (parameters.Count != 1)
