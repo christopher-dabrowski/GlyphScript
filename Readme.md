@@ -25,7 +25,7 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 - [ ] obsługa zmiennych tablicowych
 - [ ] obsługa macierzy liczb
 - [ ] obsługa wartości logicznych
-  - [ ] AND, OR, XOR, NEG
+  - [x] AND, OR, XOR, NEG - [BoolOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/BoolOperationsTests.cs)
   - [ ] short-circuit boolean evaluation
 - [x] obsługa liczb o różnej precyzji
 - [ ] obsługa typu ciąg znaków
