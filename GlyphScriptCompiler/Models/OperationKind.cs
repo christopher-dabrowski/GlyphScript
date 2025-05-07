@@ -14,5 +14,9 @@ public enum OperationKind
     Xor,
 
     Print,
-    Read
+    Read,
+
+    CreateArray,
+    ArrayAccess,
+    ArrayElementAssignment
 }

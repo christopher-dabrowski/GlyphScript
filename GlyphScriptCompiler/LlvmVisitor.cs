@@ -8,7 +8,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 {
     public LLVMModuleRef LlvmModule { get; }
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
-    // TODO: Remove ExpressionResultTypeEngine
     private readonly ExpressionResultTypeEngine _expressionResultTypeEngine = new();
 
     private readonly Dictionary<string, GlyphScriptValue> _variables = [];
@@ -25,7 +24,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             new FloatOperations(llvmModule, _llvmBuilder),
             new DoubleOperations(llvmModule, _llvmBuilder),
             new StringOperations(llvmModule, _llvmBuilder),
-            new BoolOperations(llvmModule, _llvmBuilder)
+            new BoolOperations(llvmModule, _llvmBuilder),
+            new ArrayOperations(llvmModule, _llvmBuilder)
         ];
 
         foreach (var provider in initialOperationProviders)
@@ -64,6 +64,13 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
 
+        // Get array type information if this is an array
+        ArrayTypeInfo? arrayInfo = null;
+        if (type == GlyphScriptType.Array)
+        {
+            arrayInfo = Visit(context.type().arrayOfType()) as ArrayTypeInfo;
+        }
+
         var operationSignature = new OperationSignature(operationKind, [type]);
         var createDefaultValueOperation = _availableOperations.GetValueOrDefault(operationSignature);
         if (createDefaultValueOperation is null)
@@ -75,12 +82,23 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (_variables.ContainsKey(id))
             throw new InvalidOperationException($"Variable '{id}' is already defined.");
 
-        var llvmType = GetLlvmType(type);
+        // Pass array info to GetLlvmType
+        var llvmType = GetLlvmType(type, arrayInfo);
         var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
 
         LLVM.BuildStore(_llvmBuilder, value.Value, variable);
 
-        var result = new GlyphScriptValue(variable, type);
+        // Create GlyphScriptValue with array information if applicable
+        GlyphScriptValue result;
+        if (type == GlyphScriptType.Array && arrayInfo != null)
+        {
+            result = new GlyphScriptValue(variable, type, arrayInfo);
+        }
+        else
+        {
+            result = new GlyphScriptValue(variable, type);
+        }
+
         _variables[id] = result;
         return result;
     }
@@ -89,6 +107,13 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     {
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
+
+        // Get array type information if this is an array
+        ArrayTypeInfo? arrayInfo = null;
+        if (type == GlyphScriptType.Array)
+        {
+            arrayInfo = Visit(context.type().arrayOfType()) as ArrayTypeInfo;
+        }
 
         var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
             throw new InvalidOperationException("Failed to create expression");
@@ -106,37 +131,99 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             };
         }
 
-        var llvmType = GetLlvmType(type);
+        // Pass array info to GetLlvmType
+        var llvmType = GetLlvmType(type, arrayInfo);
         var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
 
         LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable);
 
-        var result = new GlyphScriptValue(variable, type);
+        // Create GlyphScriptValue with array information if applicable
+        GlyphScriptValue result;
+        if (type == GlyphScriptType.Array && arrayInfo != null)
+        {
+            result = new GlyphScriptValue(variable, type, arrayInfo);
+        }
+        else
+        {
+            result = new GlyphScriptValue(variable, type);
+        }
+
         _variables[id] = result;
         return result;
     }
 
     public override object? VisitAssignment(GlyphScriptParser.AssignmentContext context)
     {
-        var id = context.ID().GetText();
-        var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
-            throw new InvalidOperationException("Failed to create expression");
-
-        if (!_variables.TryGetValue(id, out var variable))
-            throw new UndefinedVariableUsageException(context) { VariableName = id };
-
-        if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(variable.Type, expressionValue.Type))
+        // Handle array element assignment
+        if (context.expression().Length > 1)
         {
-            throw new AssignmentOfInvalidTypeException(context)
-            {
-                VariableName = id,
-                VariableGlyphScriptType = variable.Type,
-                ValueGlyphScriptType = expressionValue.Type
-            };
-        }
+            var id = context.ID().GetText();
+            var indexValue = Visit(context.expression(0)) as GlyphScriptValue ??
+                throw new InvalidOperationException("Failed to resolve index expression");
+            var rhsValue = Visit(context.expression(1)) as GlyphScriptValue ??
+                throw new InvalidOperationException("Failed to create expression value");
 
-        LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable.Value);
-        return expressionValue;
+            if (!_variables.TryGetValue(id, out var arrayVariable))
+                throw new UndefinedVariableUsageException(context) { VariableName = id };
+
+            if (arrayVariable.Type != GlyphScriptType.Array || arrayVariable.ArrayInfo == null)
+                throw new InvalidSyntaxException(context, $"Variable '{id}' is not an array");
+
+            // Ensure index is an integer type
+            if (indexValue.Type != GlyphScriptType.Int && indexValue.Type != GlyphScriptType.Long)
+                throw new InvalidSyntaxException(context,
+                    $"Array indices must be integer types. Found: {indexValue.Type}");
+
+            // Ensure the RHS value type matches the array element type
+            if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(arrayVariable.ArrayInfo.ElementType, rhsValue.Type))
+            {
+                throw new AssignmentOfInvalidTypeException(context)
+                {
+                    VariableName = $"{id}[index]",
+                    VariableGlyphScriptType = arrayVariable.ArrayInfo.ElementType,
+                    ValueGlyphScriptType = rhsValue.Type
+                };
+            }
+
+            // Load the array value from the variable first - this is key for assignment to work
+            var loadedArrayValue = LLVM.BuildLoad(_llvmBuilder, arrayVariable.Value, $"{id}Value");
+            var arrayValue = new GlyphScriptValue(loadedArrayValue, arrayVariable.Type, arrayVariable.ArrayInfo);
+
+            const OperationKind operationKind = OperationKind.ArrayElementAssignment;
+            var operationSignature = new OperationSignature(
+                operationKind,
+                [arrayVariable.Type, indexValue.Type, rhsValue.Type, arrayVariable.ArrayInfo.ElementType]
+            );
+
+            var arrayAssignmentOperation = _availableOperations.GetValueOrDefault(operationSignature);
+            if (arrayAssignmentOperation is null)
+                throw new OperationNotAvailableException(context, operationSignature);
+
+            return arrayAssignmentOperation(context, [arrayValue, indexValue, rhsValue]);
+        }
+        else
+        {
+            // Normal variable assignment
+            var id = context.ID().GetText();
+            var expressionValue = Visit(context.expression(0)) as GlyphScriptValue ??
+                throw new InvalidOperationException("Failed to create expression");
+
+            if (!_variables.TryGetValue(id, out var variable))
+                throw new UndefinedVariableUsageException(context) { VariableName = id };
+
+            if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(variable.Type, expressionValue.Type))
+            {
+                throw new AssignmentOfInvalidTypeException(context)
+                {
+                    VariableName = id,
+                    VariableGlyphScriptType = variable.Type,
+                    ValueGlyphScriptType = expressionValue.Type
+                };
+            }
+
+            LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable.Value);
+            return expressionValue;
+        }
     }
 
     public override object? VisitPrint(GlyphScriptParser.PrintContext context)
@@ -180,6 +267,11 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitImmediateValue(GlyphScriptParser.ImmediateValueContext context)
     {
+        if (context.arrayLiteral() != null)
+        {
+            return Visit(context.arrayLiteral());
+        }
+
         const OperationKind operationKind = OperationKind.ParseImmediate;
 
         static GlyphScriptType DetectType(GlyphScriptParser.ImmediateValueContext context)
@@ -264,7 +356,20 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (!_variables.TryGetValue(id, out var variable))
             throw new InvalidOperationException($"Variable '{id}' is not defined.");
 
-        return new GlyphScriptValue(LLVM.BuildLoad(_llvmBuilder, variable.Value, id), variable.Type);
+        // Maintain array type info when loading array variables
+        if (variable.Type == GlyphScriptType.Array && variable.ArrayInfo != null)
+        {
+            return new GlyphScriptValue(
+                LLVM.BuildLoad(_llvmBuilder, variable.Value, id),
+                variable.Type,
+                variable.ArrayInfo);
+        }
+        else
+        {
+            return new GlyphScriptValue(
+                LLVM.BuildLoad(_llvmBuilder, variable.Value, id),
+                variable.Type);
+        }
     }
 
     public override object? VisitNotExpr(GlyphScriptParser.NotExprContext context)
@@ -301,6 +406,92 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return operation(context, [leftValue, rightValue]);
     }
 
+    public override object? VisitArrayLiteral(GlyphScriptParser.ArrayLiteralContext context)
+    {
+        const OperationKind operationKind = OperationKind.CreateArray;
+
+        // If this is an empty array, we need to determine the element type from context
+        if (context.expressionList() == null)
+        {
+            // Default to integer array if no element type can be determined
+            var defaultElementType = GlyphScriptType.Int;
+            var operationSignature = new OperationSignature(operationKind, [defaultElementType]);
+
+            var createEmptyArrayOperation = _availableOperations.GetValueOrDefault(operationSignature);
+            if (createEmptyArrayOperation is null)
+                throw new OperationNotAvailableException(context, operationSignature);
+
+            return createEmptyArrayOperation(context, []);
+        }
+
+        // Get all expressions in the array
+        var expressionValues = new List<GlyphScriptValue>();
+
+        // Visit each expression to get its value
+        foreach (var expr in context.expressionList().expression())
+        {
+            var value = Visit(expr) as GlyphScriptValue ??
+                throw new InvalidOperationException("Failed to evaluate array element expression");
+            expressionValues.Add(value);
+        }
+
+        // Ensure all elements have the same type
+        var elementType = expressionValues[0].Type;
+        for (int i = 1; i < expressionValues.Count; i++)
+        {
+            if (expressionValues[i].Type != elementType)
+                throw new InvalidSyntaxException(context,
+                    $"Array elements must be of the same type. Found {elementType} and {expressionValues[i].Type}");
+        }
+
+        // Get the operation to create an array of this element type
+        var arrayOperationSignature = new OperationSignature(operationKind, [elementType]);
+        var createArrayOperation = _availableOperations.GetValueOrDefault(arrayOperationSignature);
+
+        if (createArrayOperation is null)
+            throw new OperationNotAvailableException(context, arrayOperationSignature);
+
+        return createArrayOperation(context, expressionValues.ToArray());
+    }
+
+    public override object? VisitArrayAccessExp(GlyphScriptParser.ArrayAccessExpContext context)
+    {
+        const OperationKind operationKind = OperationKind.ArrayAccess;
+
+        // Get the array value
+        var arrayValue = Visit(context.expression(0)) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to resolve array expression");
+
+        if (arrayValue.Type != GlyphScriptType.Array || arrayValue.ArrayInfo == null)
+            throw new InvalidSyntaxException(context, $"Expression is not an array: {context.expression(0).GetText()}");
+
+        // Get the index value
+        var indexValue = Visit(context.expression(1)) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to resolve index expression");
+
+        // Ensure index is an integer type
+        if (indexValue.Type != GlyphScriptType.Int && indexValue.Type != GlyphScriptType.Long)
+            throw new InvalidSyntaxException(context,
+                $"Array indices must be integer types. Found: {indexValue.Type}");
+
+        // Get the operation for array access with this element type
+        var accessOperationSignature = new OperationSignature(operationKind,
+            [arrayValue.Type, indexValue.Type, arrayValue.ArrayInfo.ElementType]);
+
+        var arrayAccessOperation = _availableOperations.GetValueOrDefault(accessOperationSignature);
+        if (arrayAccessOperation is null)
+            throw new OperationNotAvailableException(context, accessOperationSignature);
+
+        return arrayAccessOperation(context, [arrayValue, indexValue]);
+    }
+
+    public override object? VisitArrayOfType(GlyphScriptParser.ArrayOfTypeContext context)
+    {
+        // Get the element type
+        var elementType = GetTypeFromContext(context.type());
+        return new ArrayTypeInfo(elementType);
+    }
+
     private static GlyphScriptType GetTypeFromContext(GlyphScriptParser.TypeContext context)
     {
         if (context.INT() != null) return GlyphScriptType.Int;
@@ -309,10 +500,12 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.DOUBLE() != null) return GlyphScriptType.Double;
         if (context.STRING_TYPE() != null) return GlyphScriptType.String;
         if (context.BOOLEAN_TYPE() != null) return GlyphScriptType.Boolean;
+        if (context.arrayOfType() != null) return GlyphScriptType.Array;
         throw new InvalidOperationException("Invalid type");
     }
 
-    private static LLVMTypeRef GetLlvmType(GlyphScriptType glyphScriptType)
+    // Update GetLlvmType to support arrays
+    private static LLVMTypeRef GetLlvmType(GlyphScriptType glyphScriptType, ArrayTypeInfo? arrayInfo = null)
     {
         return glyphScriptType switch
         {
@@ -322,6 +515,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             GlyphScriptType.Double => LLVM.DoubleType(),
             GlyphScriptType.String => LLVM.PointerType(LLVM.Int8Type(), 0),
             GlyphScriptType.Boolean => LLVM.Int1Type(),
+            GlyphScriptType.Array when arrayInfo != null => LLVM.PointerType(LLVM.Int8Type(), 0), // Arrays are pointers to memory
             _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
     }

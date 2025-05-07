@@ -3,5 +3,6 @@ namespace GlyphScriptCompiler.Models;
 public record GlyphScriptValue
 (
     LLVMValueRef Value,
-    GlyphScriptType Type
+    GlyphScriptType Type,
+    ArrayTypeInfo? ArrayInfo = null
 );
