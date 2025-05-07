@@ -21,6 +21,7 @@ expression
     | expression (MULTIPLICATION_SYMBOL | DIVISION_SYMBOL) expression # mulDivExp
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
     | expression XOR_SYMBOL expression                                # xorExp
+    | expression '[' expression ']'                                   # arrayAccessExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
     ;
@@ -35,6 +36,7 @@ read
 
 assignment
     : ID '=' expression
+    | ID '[' expression ']' '=' expression
     ;
 
 declaration
@@ -58,6 +60,7 @@ immediateValue
     | STRING_LITERAL
     | TRUE_LITERAL
     | FALSE_LITERAL
+    | arrayLiteral
     ;
 
 type
@@ -67,6 +70,19 @@ type
     | DOUBLE
     | STRING_TYPE
     | BOOLEAN_TYPE
+    | arrayOfType
+    ;
+
+arrayOfType
+    : ARRAY_TYPE type
+    ;
+
+arrayLiteral
+    : '[' expressionList? ']'
+    ;
+
+expressionList
+    : expression (',' expression)*
     ;
 
 COMMENT
@@ -91,6 +107,10 @@ DOUBLE
 
 STRING_TYPE
     : LETTERS_SYMBOL
+    ;
+
+ARRAY_TYPE
+    : PACKAGE_EMOJI
     ;
 
 FLOAT
@@ -186,7 +206,7 @@ WHITE_SPACE
     ;
 
 fragment STRING_CHAR
-    : ~[\\'\n\r\t$]
+    : ~[\\"\n\r\t$]
     ;
 
 fragment LOUDSPEAKER_EMOJI
@@ -275,4 +295,9 @@ fragment CROSSED_SWORDS_EMOJI
 fragment NO_ENTRY_SIGN_EMOJI
     : '🚫'
     | ':no_entry_sign:'
+    ;
+
+fragment PACKAGE_EMOJI
+    : '📦'
+    | ':package:'
     ;
