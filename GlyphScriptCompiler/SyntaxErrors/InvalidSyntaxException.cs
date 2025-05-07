@@ -13,6 +13,12 @@ public class InvalidSyntaxException : InvalidOperationException
     {
     }
 
+    public InvalidSyntaxException(ParserRuleContext context, string reason)
+        : this(context.Start)
+    {
+        Reason = reason;
+    }
+
     public InvalidSyntaxException(NoViableAltException noViableAltException)
         : this(noViableAltException.OffendingToken)
     {
@@ -21,7 +27,7 @@ public class InvalidSyntaxException : InvalidOperationException
     public int Line { get; }
     public int Column { get; }
 
-    public virtual string Reason => "Syntax error";
+    public virtual string Reason { get; } = "Syntax error";
 
     public override string Message => $"{Reason} detected in Line {Line}, Column {Column}";
 }
