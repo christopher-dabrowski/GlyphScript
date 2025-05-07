@@ -1,0 +1,2 @@
+📦🔢 emptyArray = []
+📢 emptyArray
