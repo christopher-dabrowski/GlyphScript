@@ -22,6 +22,7 @@ expression
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
     | expression XOR_SYMBOL expression                                # xorExp
     | expression '[' expression ']'                                   # arrayAccessExp
+    | matrixLiteral                                                   # matrixLiteralExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
     ;
@@ -71,16 +72,25 @@ type
     | STRING_TYPE
     | BOOLEAN_TYPE
     | arrayOfType
+    | matrixOfType
     ;
 
 arrayOfType
     : ARRAY_TYPE type
     ;
 
+matrixOfType
+    : MATRIX_TYPE type
+    ;
+
 arrayLiteral
     : '[' expressionList? ']'
     ;
 
+matrixLiteral
+    : '[' '[' expressionList ']' (',' '[' expressionList ']')* ']'
+    ;
+    
 expressionList
     : expression (',' expression)*
     ;
@@ -111,6 +121,10 @@ STRING_TYPE
 
 ARRAY_TYPE
     : PACKAGE_EMOJI
+    ;
+
+MATRIX_TYPE
+    : MATRIX_EMOJI
     ;
 
 FLOAT
@@ -300,4 +314,9 @@ fragment NO_ENTRY_SIGN_EMOJI
 fragment PACKAGE_EMOJI
     : '📦'
     | ':package:'
+    ;
+
+fragment MATRIX_EMOJI
+    : '🧮'
+    | ':abacus:'
     ;
