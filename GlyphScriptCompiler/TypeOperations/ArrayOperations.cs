@@ -7,9 +7,9 @@ public class ArrayOperations : IOperationProvider
     private readonly LLVMModuleRef _module;
     private readonly LLVMBuilderRef _builder;
     private readonly Dictionary<OperationSignature, OperationImplementation> _operations = new();
+
     private LLVMValueRef _indexOutOfBoundsGlobal;
 
-    // Constants used in PrintArray method
     private LLVMValueRef _arrayOpenBracketMsg;
     private LLVMValueRef _arrayCloseBracketMsg;
     private LLVMValueRef _arrayCommaMsg;
@@ -22,7 +22,9 @@ public class ArrayOperations : IOperationProvider
     private LLVMValueRef _falseMsg;
     private LLVMValueRef _unknownFormatMsg;
 
-    public ArrayOperations(LLVMModuleRef module, LLVMBuilderRef builder)
+    public ArrayOperations(
+        LLVMModuleRef module,
+        LLVMBuilderRef builder)
     {
         _module = module;
         _builder = builder;
@@ -57,19 +59,38 @@ public class ArrayOperations : IOperationProvider
     public void Initialize()
     {
         _indexOutOfBoundsGlobal = LlvmHelper.CreateStringConstant(_module, "indexOutOfBoundsError", "Array index out of bounds\\n");
-
-        // Initialize string constants used in PrintArray method
         _arrayOpenBracketMsg = LlvmHelper.CreateStringConstant(_module, "arrayOpenBracket", "[");
         _arrayCloseBracketMsg = LlvmHelper.CreateStringConstant(_module, "arrayCloseBracket", "]\n");
         _arrayCommaMsg = LlvmHelper.CreateStringConstant(_module, "arrayComma", ", ");
-        _intFormatMsg = LlvmHelper.CreateStringConstant(_module, "intFormat", "%d");
-        _longFormatMsg = LlvmHelper.CreateStringConstant(_module, "longFormat", "%lld");
-        _floatFormatMsg = LlvmHelper.CreateStringConstant(_module, "floatFormat", "%f");
-        _doubleFormatMsg = LlvmHelper.CreateStringConstant(_module, "doubleFormat", "%f");
-        _stringFormatMsg = LlvmHelper.CreateStringConstant(_module, "stringFormat", "\"%s\"");
-        _trueMsg = LlvmHelper.CreateStringConstant(_module, "trueString", "true");
-        _falseMsg = LlvmHelper.CreateStringConstant(_module, "falseString", "false");
         _unknownFormatMsg = LlvmHelper.CreateStringConstant(_module, "unknownFormat", "?");
+
+        _intFormatMsg = LLVM.GetNamedGlobal(_module, "strs_int");
+        if (_intFormatMsg.Pointer == IntPtr.Zero)
+            _intFormatMsg = LlvmHelper.CreateStringConstant(_module, "intFormat", "%d");
+
+        _longFormatMsg = LLVM.GetNamedGlobal(_module, "strs_long");
+        if (_longFormatMsg.Pointer == IntPtr.Zero)
+            _longFormatMsg = LlvmHelper.CreateStringConstant(_module, "longFormat", "%lld");
+
+        _floatFormatMsg = LLVM.GetNamedGlobal(_module, "strs_float");
+        if (_floatFormatMsg.Pointer == IntPtr.Zero)
+            _floatFormatMsg = LlvmHelper.CreateStringConstant(_module, "floatFormat", "%f");
+
+        _doubleFormatMsg = LLVM.GetNamedGlobal(_module, "strs_double");
+        if (_doubleFormatMsg.Pointer == IntPtr.Zero)
+            _doubleFormatMsg = LlvmHelper.CreateStringConstant(_module, "doubleFormat", "%f");
+
+        _stringFormatMsg = LLVM.GetNamedGlobal(_module, "strs_string");
+        if (_stringFormatMsg.Pointer == IntPtr.Zero)
+            _stringFormatMsg = LlvmHelper.CreateStringConstant(_module, "stringFormat", "\"%s\"");
+
+        _trueMsg = LLVM.GetNamedGlobal(_module, "trueString");
+        if (_trueMsg.Pointer == IntPtr.Zero)
+            _trueMsg = LlvmHelper.CreateStringConstant(_module, "trueString", "true");
+
+        _falseMsg = LLVM.GetNamedGlobal(_module, "falseString");
+        if (_falseMsg.Pointer == IntPtr.Zero)
+            _falseMsg = LlvmHelper.CreateStringConstant(_module, "falseString", "false");
     }
 
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations => _operations;
@@ -77,7 +98,7 @@ public class ArrayOperations : IOperationProvider
     private void RegisterCreateArrayOperation(GlyphScriptType elementType) =>
         _operations.Add(
             new OperationSignature(OperationKind.CreateArray, [elementType]),
-            (context, values) => CreateArray(elementType, values)
+            (_, values) => CreateArray(elementType, values)
         );
 
     private void RegisterArrayAccessOperation(GlyphScriptType elementType)
@@ -85,13 +106,13 @@ public class ArrayOperations : IOperationProvider
         _operations.Add(
             new OperationSignature(OperationKind.ArrayAccess,
                 [GlyphScriptType.Array, GlyphScriptType.Int, elementType]),
-            (context, values) => AccessArray(values, elementType)
+            (_, values) => AccessArray(values, elementType)
         );
 
         _operations.Add(
             new OperationSignature(OperationKind.ArrayAccess,
                 [GlyphScriptType.Array, GlyphScriptType.Long, elementType]),
-            (context, values) => AccessArray(values, elementType)
+            (_, values) => AccessArray(values, elementType)
         );
     }
 
@@ -100,13 +121,13 @@ public class ArrayOperations : IOperationProvider
         _operations.Add(
             new OperationSignature(OperationKind.ArrayElementAssignment,
                 [GlyphScriptType.Array, GlyphScriptType.Int, elementType, elementType]),
-            (context, values) => AssignArrayElement(values, elementType)
+            (_, values) => AssignArrayElement(values, elementType)
         );
 
         _operations.Add(
             new OperationSignature(OperationKind.ArrayElementAssignment,
                 [GlyphScriptType.Array, GlyphScriptType.Long, elementType, elementType]),
-            (context, values) => AssignArrayElement(values, elementType)
+            (_, values) => AssignArrayElement(values, elementType)
         );
     }
 
@@ -267,7 +288,7 @@ public class ArrayOperations : IOperationProvider
         return valueToAssign;
     }
 
-    private GlyphScriptValue PrintArray(Antlr4.Runtime.RuleContext context, IReadOnlyList<GlyphScriptValue> values)
+    private GlyphScriptValue PrintArray(RuleContext context, IReadOnlyList<GlyphScriptValue> values)
     {
         var array = values[0];
         if (array.ArrayInfo == null)
@@ -441,7 +462,6 @@ public class ArrayOperations : IOperationProvider
         var tempAlloca = LLVM.BuildAlloca(_builder, type, "sizeofTemp");
 
         // Calculate the pointer difference between this pointer and the next
-        var ptrType = LLVM.TypeOf(tempAlloca);
         var nextPtr = LLVM.BuildGEP(_builder, tempAlloca,
             [LLVM.ConstInt(LLVM.Int32Type(), 1, false)], "nextPtr");
 

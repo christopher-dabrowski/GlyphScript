@@ -54,7 +54,7 @@ public class ArrayOperationsTests : IDisposable
     {
         var output = await RunProgram("stringArray.gs");
 
-        var expectedOutput = "[\"Alice\", \"Bob\", \"Charlie\"]\n";
+        var expectedOutput = "[Alice, Bob, Charlie]\n";
         Assert.Equal(expectedOutput, output);
     }
 
