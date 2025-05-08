@@ -7,6 +7,20 @@ public class ArrayOperations : IOperationProvider
     private readonly LLVMModuleRef _module;
     private readonly LLVMBuilderRef _builder;
     private readonly Dictionary<OperationSignature, OperationImplementation> _operations = new();
+    private LLVMValueRef _indexOutOfBoundsGlobal;
+
+    // Constants used in PrintArray method
+    private LLVMValueRef _arrayOpenBracketMsg;
+    private LLVMValueRef _arrayCloseBracketMsg;
+    private LLVMValueRef _arrayCommaMsg;
+    private LLVMValueRef _intFormatMsg;
+    private LLVMValueRef _longFormatMsg;
+    private LLVMValueRef _floatFormatMsg;
+    private LLVMValueRef _doubleFormatMsg;
+    private LLVMValueRef _stringFormatMsg;
+    private LLVMValueRef _trueMsg;
+    private LLVMValueRef _falseMsg;
+    private LLVMValueRef _unknownFormatMsg;
 
     public ArrayOperations(LLVMModuleRef module, LLVMBuilderRef builder)
     {
@@ -42,7 +56,20 @@ public class ArrayOperations : IOperationProvider
 
     public void Initialize()
     {
-        LlvmHelper.CreateStringConstant(_module, "indexOutOfBoundsError", "Array index out of bounds\\n");
+        _indexOutOfBoundsGlobal = LlvmHelper.CreateStringConstant(_module, "indexOutOfBoundsError", "Array index out of bounds\\n");
+
+        // Initialize string constants used in PrintArray method
+        _arrayOpenBracketMsg = LlvmHelper.CreateStringConstant(_module, "arrayOpenBracket", "[");
+        _arrayCloseBracketMsg = LlvmHelper.CreateStringConstant(_module, "arrayCloseBracket", "]\n");
+        _arrayCommaMsg = LlvmHelper.CreateStringConstant(_module, "arrayComma", ", ");
+        _intFormatMsg = LlvmHelper.CreateStringConstant(_module, "intFormat", "%d");
+        _longFormatMsg = LlvmHelper.CreateStringConstant(_module, "longFormat", "%lld");
+        _floatFormatMsg = LlvmHelper.CreateStringConstant(_module, "floatFormat", "%f");
+        _doubleFormatMsg = LlvmHelper.CreateStringConstant(_module, "doubleFormat", "%f");
+        _stringFormatMsg = LlvmHelper.CreateStringConstant(_module, "stringFormat", "\"%s\"");
+        _trueMsg = LlvmHelper.CreateStringConstant(_module, "trueString", "true");
+        _falseMsg = LlvmHelper.CreateStringConstant(_module, "falseString", "false");
+        _unknownFormatMsg = LlvmHelper.CreateStringConstant(_module, "unknownFormat", "?");
     }
 
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations => _operations;
@@ -157,36 +184,28 @@ public class ArrayOperations : IOperationProvider
 
         LLVM.PositionBuilderAtEnd(_builder, outOfBoundsBlock);
 
-        var indexOutOfBoundsGlobal = LLVM.GetNamedGlobal(_module, "indexOutOfBoundsError");
-        var errorMsgPtr = LlvmHelper.GetStringPtr(_builder, indexOutOfBoundsGlobal);
+        var errorMsgPtr = LlvmHelper.GetStringPtr(_builder, _indexOutOfBoundsGlobal);
 
         var printfFunc = LLVM.GetNamedFunction(_module, "printf");
         LLVM.BuildCall(_builder, printfFunc, [errorMsgPtr], "printfError");
 
-        // Create a default value for the element type
         var defaultValue = CreateDefaultValue(elementType);
         LLVM.BuildBr(_builder, continueBlock);
 
-        // Handle in-bounds access
         LLVM.PositionBuilderAtEnd(_builder, inBoundsBlock);
 
-        // Get pointer to the first element
         var firstElementOffset = LLVM.ConstInt(LLVM.Int32Type(), 1, false); // Skip 1 int32
         var elementsPtr = LLVM.BuildGEP(_builder, arraySizePtr, [firstElementOffset], "elementsPtr");
 
-        // Cast to the right element type
         var llvmElementType = GetLlvmType(elementType);
         var typedElementsPtr = LLVM.BuildBitCast(_builder, elementsPtr,
             LLVM.PointerType(llvmElementType, 0), "typedElementsPtr");
 
-        // Get the pointer to the element at the index
         var elementPtr = LLVM.BuildGEP(_builder, typedElementsPtr, [index.Value], "elementPtr");
 
-        // Load the element
         var elementValue = LLVM.BuildLoad(_builder, elementPtr, "elementValue");
         LLVM.BuildBr(_builder, continueBlock);
 
-        // Continue block - uses PHI node to merge results
         LLVM.PositionBuilderAtEnd(_builder, continueBlock);
         var resultPhi = LLVM.BuildPhi(_builder, llvmElementType, "result");
 
@@ -199,19 +218,15 @@ public class ArrayOperations : IOperationProvider
 
     private GlyphScriptValue AssignArrayElement(IReadOnlyList<GlyphScriptValue> values, GlyphScriptType elementType)
     {
-        // Extract values from parameters
-        var array = values[0];        // The array
-        var index = values[1];        // The index
-        var valueToAssign = values[2]; // The value to assign
+        var array = values[0];
+        var index = values[1];
+        var valueToAssign = values[2];
 
-        // Cast void* to int* to access the size field
         var arraySizePtr = LLVM.BuildBitCast(_builder, array.Value,
             LLVM.PointerType(LLVM.Int32Type(), 0), "arraySizePtr");
 
-        // Load the array size
         var arraySize = LLVM.BuildLoad(_builder, arraySizePtr, "arraySize");
 
-        // Check if index is out of bounds
         var isOutOfBounds = LLVM.BuildOr(_builder,
             LLVM.BuildICmp(_builder, LLVMIntPredicate.LLVMIntSLT, index.Value,
                 LLVM.ConstInt(LLVM.Int32Type(), 0, false), "isNegative"),
@@ -219,68 +234,52 @@ public class ArrayOperations : IOperationProvider
                 arraySize, "isTooBig"),
             "isOutOfBounds");
 
-        // Create basic blocks for the bounds check
         var currentFunction = LLVM.GetBasicBlockParent(LLVM.GetInsertBlock(_builder));
         var inBoundsBlock = LLVM.AppendBasicBlock(currentFunction, "assignInBounds");
         var outOfBoundsBlock = LLVM.AppendBasicBlock(currentFunction, "assignOutOfBounds");
         var continueBlock = LLVM.AppendBasicBlock(currentFunction, "assignContinue");
 
-        // Branch based on the check
         LLVM.BuildCondBr(_builder, isOutOfBounds, outOfBoundsBlock, inBoundsBlock);
 
-        // Handle out of bounds access - print error
         LLVM.PositionBuilderAtEnd(_builder, outOfBoundsBlock);
-        var errorMsg = LlvmHelper.CreateStringConstant(_module, "indexOutOfBoundsErrorAssign",
-            "Array index out of bounds for assignment\n");
-        var errorMsgPtr = LlvmHelper.GetStringPtr(_builder, errorMsg);
+        var errorMsgPtr = LlvmHelper.GetStringPtr(_builder, _indexOutOfBoundsGlobal);
 
         var printfFunc = LLVM.GetNamedFunction(_module, "printf");
         LLVM.BuildCall(_builder, printfFunc, [errorMsgPtr], "printfError");
         LLVM.BuildBr(_builder, continueBlock);
 
-        // Handle in-bounds access
         LLVM.PositionBuilderAtEnd(_builder, inBoundsBlock);
 
-        // Get pointer to the first element
         var firstElementOffset = LLVM.ConstInt(LLVM.Int32Type(), 1, false); // Skip 1 int32
         var elementsPtr = LLVM.BuildGEP(_builder, arraySizePtr, [firstElementOffset], "elementsPtr");
 
-        // Cast to the right element type
         var llvmElementType = GetLlvmType(elementType);
         var typedElementsPtr = LLVM.BuildBitCast(_builder, elementsPtr,
             LLVM.PointerType(llvmElementType, 0), "typedElementsPtr");
 
-        // Get the pointer to the element at the index
         var elementPtr = LLVM.BuildGEP(_builder, typedElementsPtr, [index.Value], "elementAssignPtr");
 
-        // Store the new value at that location
         LLVM.BuildStore(_builder, valueToAssign.Value, elementPtr);
         LLVM.BuildBr(_builder, continueBlock);
 
-        // Continue block for both paths
         LLVM.PositionBuilderAtEnd(_builder, continueBlock);
 
-        // Return the assigned value
         return valueToAssign;
     }
 
     private GlyphScriptValue PrintArray(Antlr4.Runtime.RuleContext context, IReadOnlyList<GlyphScriptValue> values)
     {
-        // Extract array value
         var array = values[0];
         if (array.ArrayInfo == null)
             throw new InvalidOperationException("Array type info is missing");
 
-        // Cast void* to int* to access the size field
         var arraySizePtr = LLVM.BuildBitCast(_builder, array.Value,
             LLVM.PointerType(LLVM.Int32Type(), 0), "arraySizePtr");
 
-        // Load the array size
         var arraySize = LLVM.BuildLoad(_builder, arraySizePtr, "arraySize");
 
         // Print opening bracket
-        var openBracketMsg = LlvmHelper.CreateStringConstant(_module, "arrayOpenBracket", "[");
-        var openBracketMsgPtr = LlvmHelper.GetStringPtr(_builder, openBracketMsg);
+        var openBracketMsgPtr = LlvmHelper.GetStringPtr(_builder, _arrayOpenBracketMsg);
         var printfFunc = LLVM.GetNamedFunction(_module, "printf");
         LLVM.BuildCall(_builder, printfFunc, [openBracketMsgPtr], "printfOpenBracket");
 
@@ -332,8 +331,7 @@ public class ArrayOperations : IOperationProvider
 
         // Print comma
         LLVM.PositionBuilderAtEnd(_builder, commaBlock);
-        var commaMsg = LlvmHelper.CreateStringConstant(_module, "arrayComma", ", ");
-        var commaMsgPtr = LlvmHelper.GetStringPtr(_builder, commaMsg);
+        var commaMsgPtr = LlvmHelper.GetStringPtr(_builder, _arrayCommaMsg);
         LLVM.BuildCall(_builder, printfFunc, [commaMsgPtr], "printfComma");
         LLVM.BuildBr(_builder, printElementBlock);
 
@@ -344,25 +342,21 @@ public class ArrayOperations : IOperationProvider
         switch (elementType)
         {
             case GlyphScriptType.Int:
-                var intFormatMsg = LlvmHelper.CreateStringConstant(_module, "intFormat", "%d");
-                var intFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, intFormatMsg);
+                var intFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, _intFormatMsg);
                 LLVM.BuildCall(_builder, printfFunc, [intFormatMsgPtr, elementValue], "printfInt");
                 break;
             case GlyphScriptType.Long:
-                var longFormatMsg = LlvmHelper.CreateStringConstant(_module, "longFormat", "%lld");
-                var longFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, longFormatMsg);
+                var longFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, _longFormatMsg);
                 LLVM.BuildCall(_builder, printfFunc, [longFormatMsgPtr, elementValue], "printfLong");
                 break;
             case GlyphScriptType.Float:
                 // Convert float to double for printf
                 var floatAsDouble = LLVM.BuildFPExt(_builder, elementValue, LLVM.DoubleType(), "floatAsDouble");
-                var floatFormatMsg = LlvmHelper.CreateStringConstant(_module, "floatFormat", "%f");
-                var floatFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, floatFormatMsg);
+                var floatFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, _floatFormatMsg);
                 LLVM.BuildCall(_builder, printfFunc, [floatFormatMsgPtr, floatAsDouble], "printfFloat");
                 break;
             case GlyphScriptType.Double:
-                var doubleFormatMsg = LlvmHelper.CreateStringConstant(_module, "doubleFormat", "%f");
-                var doubleFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, doubleFormatMsg);
+                var doubleFormatMsgPtr = LlvmHelper.GetStringPtr(_builder, _doubleFormatMsg);
                 LLVM.BuildCall(_builder, printfFunc, [doubleFormatMsgPtr, elementValue], "printfDouble");
                 break;
             case GlyphScriptType.Boolean:
@@ -376,15 +370,13 @@ public class ArrayOperations : IOperationProvider
 
                 // Print "true"
                 LLVM.PositionBuilderAtEnd(_builder, trueBlock);
-                var trueMsg = LlvmHelper.CreateStringConstant(_module, "trueString", "true");
-                var trueMsgPtr = LlvmHelper.GetStringPtr(_builder, trueMsg);
+                var trueMsgPtr = LlvmHelper.GetStringPtr(_builder, _trueMsg);
                 LLVM.BuildCall(_builder, printfFunc, [trueMsgPtr], "printfTrue");
                 LLVM.BuildBr(_builder, boolContinueBlock);
 
                 // Print "false"
                 LLVM.PositionBuilderAtEnd(_builder, falseBlock);
-                var falseMsg = LlvmHelper.CreateStringConstant(_module, "falseString", "false");
-                var falseMsgPtr = LlvmHelper.GetStringPtr(_builder, falseMsg);
+                var falseMsgPtr = LlvmHelper.GetStringPtr(_builder, _falseMsg);
                 LLVM.BuildCall(_builder, printfFunc, [falseMsgPtr], "printfFalse");
                 LLVM.BuildBr(_builder, boolContinueBlock);
 
@@ -392,14 +384,12 @@ public class ArrayOperations : IOperationProvider
                 LLVM.PositionBuilderAtEnd(_builder, boolContinueBlock);
                 break;
             case GlyphScriptType.String:
-                var stringMsg = LlvmHelper.CreateStringConstant(_module, "stringFormat", "\"%s\"");
-                var stringMsgPtr = LlvmHelper.GetStringPtr(_builder, stringMsg);
+                var stringMsgPtr = LlvmHelper.GetStringPtr(_builder, _stringFormatMsg);
                 LLVM.BuildCall(_builder, printfFunc, [stringMsgPtr, elementValue], "printfString");
                 break;
             default:
                 // For unsupported types, just print a placeholder
-                var unknownMsg = LlvmHelper.CreateStringConstant(_module, "unknownFormat", "?");
-                var unknownMsgPtr = LlvmHelper.GetStringPtr(_builder, unknownMsg);
+                var unknownMsgPtr = LlvmHelper.GetStringPtr(_builder, _unknownFormatMsg);
                 LLVM.BuildCall(_builder, printfFunc, [unknownMsgPtr], "printfUnknown");
                 break;
         }
@@ -416,8 +406,7 @@ public class ArrayOperations : IOperationProvider
         LLVM.PositionBuilderAtEnd(_builder, exitBlock);
 
         // Print closing bracket and newline
-        var closeBracketMsg = LlvmHelper.CreateStringConstant(_module, "arrayCloseBracket", "]\n");
-        var closeBracketMsgPtr = LlvmHelper.GetStringPtr(_builder, closeBracketMsg);
+        var closeBracketMsgPtr = LlvmHelper.GetStringPtr(_builder, _arrayCloseBracketMsg);
         LLVM.BuildCall(_builder, printfFunc, [closeBracketMsgPtr], "printfCloseBracket");
 
         // Return the array itself
