@@ -22,8 +22,8 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 
 ### Rozszerzenia
 
-- [ ] obsługa zmiennych tablicowych
-- [ ] obsługa macierzy liczb
+- [x] obsługa zmiennych tablicowych - [ArrayOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/ArrayOperationsTests.cs)
+- [] obsługa macierzy liczb
 - [x] obsługa wartości logicznych
   - [x] AND, OR, XOR, NEG - [BoolOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/BoolOperationsTests.cs)
   - [x] short-circuit boolean evaluation [BoolOperations.cs](GlyphScriptCompiler/TypeOperations/BoolOperations.cs)
