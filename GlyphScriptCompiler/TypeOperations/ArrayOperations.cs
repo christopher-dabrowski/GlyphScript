@@ -299,50 +299,39 @@ public class ArrayOperations : IOperationProvider
 
         var arraySize = LLVM.BuildLoad(_builder, arraySizePtr, "arraySize");
 
-        // Print opening bracket
         var openBracketMsgPtr = LlvmHelper.GetStringPtr(_builder, _arrayOpenBracketMsg);
         var printfFunc = LLVM.GetNamedFunction(_module, "printf");
         LLVM.BuildCall(_builder, printfFunc, [openBracketMsgPtr], "printfOpenBracket");
 
-        // Setup for loop to print each element
         var currentFunction = LLVM.GetBasicBlockParent(LLVM.GetInsertBlock(_builder));
         var condBlock = LLVM.AppendBasicBlock(currentFunction, "forCond");
         var bodyBlock = LLVM.AppendBasicBlock(currentFunction, "forBody");
         var exitBlock = LLVM.AppendBasicBlock(currentFunction, "forExit");
 
-        // Initialize loop counter
         var counterPtr = LLVM.BuildAlloca(_builder, LLVM.Int32Type(), "i");
         LLVM.BuildStore(_builder, LLVM.ConstInt(LLVM.Int32Type(), 0, false), counterPtr);
         LLVM.BuildBr(_builder, condBlock);
 
-        // Loop condition
         LLVM.PositionBuilderAtEnd(_builder, condBlock);
         var counter = LLVM.BuildLoad(_builder, counterPtr, "iValue");
         var continueLoop = LLVM.BuildICmp(_builder, LLVMIntPredicate.LLVMIntSLT,
             counter, arraySize, "continueLoop");
         LLVM.BuildCondBr(_builder, continueLoop, bodyBlock, exitBlock);
 
-        // Loop body
         LLVM.PositionBuilderAtEnd(_builder, bodyBlock);
 
-        // Get element at the current index
-        // Get pointer to the first element
         var firstElementOffset = LLVM.ConstInt(LLVM.Int32Type(), 1, false); // Skip 1 int32
         var elementsPtr = LLVM.BuildGEP(_builder, arraySizePtr, [firstElementOffset], "elementsPtr");
 
-        // Cast to the right element type
         var elementType = array.ArrayInfo.ElementType;
         var llvmElementType = GetLlvmType(elementType);
         var typedElementsPtr = LLVM.BuildBitCast(_builder, elementsPtr,
             LLVM.PointerType(llvmElementType, 0), "typedElementsPtr");
 
-        // Get the pointer to the element at the index
         var elementPtr = LLVM.BuildGEP(_builder, typedElementsPtr, [counter], "elementPtr");
 
-        // Load the element
         var elementValue = LLVM.BuildLoad(_builder, elementPtr, "elementValue");
 
-        // Print comma if not the first element
         var isFirstElement = LLVM.BuildICmp(_builder, LLVMIntPredicate.LLVMIntEQ,
             counter, LLVM.ConstInt(LLVM.Int32Type(), 0, false), "isFirstElement");
         var commaBlock = LLVM.AppendBasicBlock(currentFunction, "printComma");
@@ -350,16 +339,13 @@ public class ArrayOperations : IOperationProvider
 
         LLVM.BuildCondBr(_builder, isFirstElement, printElementBlock, commaBlock);
 
-        // Print comma
         LLVM.PositionBuilderAtEnd(_builder, commaBlock);
         var commaMsgPtr = LlvmHelper.GetStringPtr(_builder, _arrayCommaMsg);
         LLVM.BuildCall(_builder, printfFunc, [commaMsgPtr], "printfComma");
         LLVM.BuildBr(_builder, printElementBlock);
 
-        // Print element
         LLVM.PositionBuilderAtEnd(_builder, printElementBlock);
 
-        // Print element based on its type
         switch (elementType)
         {
             case GlyphScriptType.Int:
@@ -381,27 +367,22 @@ public class ArrayOperations : IOperationProvider
                 LLVM.BuildCall(_builder, printfFunc, [doubleFormatMsgPtr, elementValue], "printfDouble");
                 break;
             case GlyphScriptType.Boolean:
-                // Create blocks for true/false paths
                 var trueBlock = LLVM.AppendBasicBlock(currentFunction, "printTrue");
                 var falseBlock = LLVM.AppendBasicBlock(currentFunction, "printFalse");
                 var boolContinueBlock = LLVM.AppendBasicBlock(currentFunction, "boolContinue");
 
-                // Branch based on boolean value
                 LLVM.BuildCondBr(_builder, elementValue, trueBlock, falseBlock);
 
-                // Print "true"
                 LLVM.PositionBuilderAtEnd(_builder, trueBlock);
                 var trueMsgPtr = LlvmHelper.GetStringPtr(_builder, _trueMsg);
                 LLVM.BuildCall(_builder, printfFunc, [trueMsgPtr], "printfTrue");
                 LLVM.BuildBr(_builder, boolContinueBlock);
 
-                // Print "false"
                 LLVM.PositionBuilderAtEnd(_builder, falseBlock);
                 var falseMsgPtr = LlvmHelper.GetStringPtr(_builder, _falseMsg);
                 LLVM.BuildCall(_builder, printfFunc, [falseMsgPtr], "printfFalse");
                 LLVM.BuildBr(_builder, boolContinueBlock);
 
-                // Continue
                 LLVM.PositionBuilderAtEnd(_builder, boolContinueBlock);
                 break;
             case GlyphScriptType.String:
@@ -409,28 +390,22 @@ public class ArrayOperations : IOperationProvider
                 LLVM.BuildCall(_builder, printfFunc, [stringMsgPtr, elementValue], "printfString");
                 break;
             default:
-                // For unsupported types, just print a placeholder
                 var unknownMsgPtr = LlvmHelper.GetStringPtr(_builder, _unknownFormatMsg);
                 LLVM.BuildCall(_builder, printfFunc, [unknownMsgPtr], "printfUnknown");
                 break;
         }
 
-        // Increment counter
         var nextCounter = LLVM.BuildAdd(_builder, counter,
             LLVM.ConstInt(LLVM.Int32Type(), 1, false), "nextI");
         LLVM.BuildStore(_builder, nextCounter, counterPtr);
 
-        // Loop back
         LLVM.BuildBr(_builder, condBlock);
 
-        // Loop exit
         LLVM.PositionBuilderAtEnd(_builder, exitBlock);
 
-        // Print closing bracket and newline
         var closeBracketMsgPtr = LlvmHelper.GetStringPtr(_builder, _arrayCloseBracketMsg);
         LLVM.BuildCall(_builder, printfFunc, [closeBracketMsgPtr], "printfCloseBracket");
 
-        // Return the array itself
         return array;
     }
 
@@ -450,29 +425,23 @@ public class ArrayOperations : IOperationProvider
 
     private LLVMValueRef GetSizeOfType(LLVMTypeRef type)
     {
-        // Create a temporary alloca to calculate the size
         var currentBlock = LLVM.GetInsertBlock(_builder);
         var currentFunction = LLVM.GetBasicBlockParent(currentBlock);
         var entryBlock = LLVM.GetEntryBasicBlock(currentFunction);
         var firstInstruction = LLVM.GetFirstInstruction(entryBlock);
 
-        // Position at the start of the entry block to ensure size calculation happens early
         LLVM.PositionBuilder(_builder, entryBlock, firstInstruction);
 
         var tempAlloca = LLVM.BuildAlloca(_builder, type, "sizeofTemp");
 
-        // Calculate the pointer difference between this pointer and the next
         var nextPtr = LLVM.BuildGEP(_builder, tempAlloca,
             [LLVM.ConstInt(LLVM.Int32Type(), 1, false)], "nextPtr");
 
-        // Cast both pointers to i64 for subtraction
         var ptr1 = LLVM.BuildPtrToInt(_builder, nextPtr, LLVM.Int64Type(), "ptr1AsInt");
         var ptr0 = LLVM.BuildPtrToInt(_builder, tempAlloca, LLVM.Int64Type(), "ptr0AsInt");
 
-        // Calculate difference
         var size = LLVM.BuildSub(_builder, ptr1, ptr0, "sizeof");
 
-        // Position back to where we were before
         LLVM.PositionBuilderAtEnd(_builder, currentBlock);
 
         return size;
