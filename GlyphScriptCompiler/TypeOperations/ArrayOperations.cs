@@ -40,6 +40,11 @@ public class ArrayOperations : IOperationProvider
         );
     }
 
+    public void Initialize()
+    {
+        LlvmHelper.CreateStringConstant(_module, "indexOutOfBoundsError", "Array index out of bounds\\n");
+    }
+
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations => _operations;
 
     private void RegisterCreateArrayOperation(GlyphScriptType elementType) =>
@@ -151,9 +156,9 @@ public class ArrayOperations : IOperationProvider
         LLVM.BuildCondBr(_builder, isOutOfBounds, outOfBoundsBlock, inBoundsBlock);
 
         LLVM.PositionBuilderAtEnd(_builder, outOfBoundsBlock);
-        var errorMsg = LlvmHelper.CreateStringConstant(_module, "indexOutOfBoundsError",
-            "Array index out of bounds\\n");
-        var errorMsgPtr = LlvmHelper.GetStringPtr(_builder, errorMsg);
+
+        var indexOutOfBoundsGlobal = LLVM.GetNamedGlobal(_module, "indexOutOfBoundsError");
+        var errorMsgPtr = LlvmHelper.GetStringPtr(_builder, indexOutOfBoundsGlobal);
 
         var printfFunc = LLVM.GetNamedFunction(_module, "printf");
         LLVM.BuildCall(_builder, printfFunc, [errorMsgPtr], "printfError");
