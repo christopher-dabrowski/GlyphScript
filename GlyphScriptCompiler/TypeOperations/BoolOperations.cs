@@ -150,8 +150,6 @@ public class BoolOperations : IOperationProvider
         var rightOperandBlock = LLVM.AppendBasicBlock(function, "and_right_operand");
         var mergeBlock = LLVM.AppendBasicBlock(function, "and_merge");
 
-        // If left is false, short-circuit and return false
-        // Otherwise, evaluate the right operand
         LLVM.BuildCondBr(_llvmBuilder, left.Value, rightOperandBlock, mergeBlock);
 
         LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
@@ -195,8 +193,6 @@ public class BoolOperations : IOperationProvider
         var rightOperandBlock = LLVM.AppendBasicBlock(function, "or_right_operand");
         var mergeBlock = LLVM.AppendBasicBlock(function, "or_merge");
 
-        // If left is true, short-circuit and return true
-        // Otherwise, evaluate the right operand
         LLVM.BuildCondBr(_llvmBuilder, left.Value, mergeBlock, rightOperandBlock);
 
         LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
