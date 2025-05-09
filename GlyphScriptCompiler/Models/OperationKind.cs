@@ -18,5 +18,6 @@ public enum OperationKind
 
     CreateArray,
     ArrayAccess,
-    ArrayElementAssignment
+    ArrayElementAssignment,
+    CreateMatrix
 }

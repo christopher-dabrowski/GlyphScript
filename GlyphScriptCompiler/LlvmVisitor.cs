@@ -25,7 +25,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             new DoubleOperations(llvmModule, _llvmBuilder),
             new StringOperations(llvmModule, _llvmBuilder),
             new BoolOperations(llvmModule, _llvmBuilder),
-            new ArrayOperations(llvmModule, _llvmBuilder)
+            new ArrayOperations(llvmModule, _llvmBuilder),
+            new MatrixOperations(llvmModule, _llvmBuilder)
         ];
 
         foreach (var provider in initialOperationProviders)
@@ -64,11 +65,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var type = GetTypeFromContext(context.type());
         var id = context.ID().GetText();
 
-        // Get array type information if this is an array
         ArrayTypeInfo? arrayInfo = null;
+        MatrixTypeInfo? matrixInfo = null;
+
         if (type == GlyphScriptType.Array)
         {
             arrayInfo = Visit(context.type().arrayOfType()) as ArrayTypeInfo;
+        }
+        else if (type == GlyphScriptType.Matrix)
+        {
+            matrixInfo = Visit(context.type().matrixOfType()) as MatrixTypeInfo;
         }
 
         var operationSignature = new OperationSignature(operationKind, [type]);
@@ -87,9 +93,19 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         LLVM.BuildStore(_llvmBuilder, value.Value, variable);
 
-        var result = type == GlyphScriptType.Array && arrayInfo != null
-            ? new GlyphScriptValue(variable, type, arrayInfo)
-            :new GlyphScriptValue(variable, type);
+        GlyphScriptValue result;
+        if (type == GlyphScriptType.Array && arrayInfo != null)
+        {
+            result = new GlyphScriptValue(variable, type, arrayInfo);
+        }
+        else if (type == GlyphScriptType.Matrix && matrixInfo != null)
+        {
+            result = new GlyphScriptValue(variable, type, null, matrixInfo);
+        }
+        else
+        {
+            result = new GlyphScriptValue(variable, type);
+        }
 
         _variables[id] = result;
         return result;
@@ -101,8 +117,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var id = context.ID().GetText();
 
         ArrayTypeInfo? arrayInfo = null;
+        MatrixTypeInfo? matrixInfo = null;
+
         if (type == GlyphScriptType.Array)
+        {
             arrayInfo = Visit(context.type().arrayOfType()) as ArrayTypeInfo;
+        }
+        else if (type == GlyphScriptType.Matrix)
+        {
+            matrixInfo = Visit(context.type().matrixOfType()) as MatrixTypeInfo;
+        }
 
         var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
             throw new InvalidOperationException("Failed to create expression");
@@ -129,6 +153,10 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (type == GlyphScriptType.Array && arrayInfo != null)
         {
             result = new GlyphScriptValue(variable, type, arrayInfo);
+        }
+        else if (type == GlyphScriptType.Matrix && matrixInfo != null)
+        {
+            result = new GlyphScriptValue(variable, type, null, matrixInfo);
         }
         else
         {
@@ -255,7 +283,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.arrayLiteral() != null)
         {
             return Visit(context.arrayLiteral());
-        }
+                }
 
         const OperationKind operationKind = OperationKind.ParseImmediate;
 
@@ -427,6 +455,41 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return createArrayOperation(context, expressionValues.ToArray());
     }
 
+    public override object? VisitMatrixLiteral(GlyphScriptParser.MatrixLiteralContext context)
+    {
+        const OperationKind operationKind = OperationKind.CreateMatrix;
+
+        var rows = context.expressionList()
+            .Select(rowContext => rowContext.expression()
+                .Select(expr => Visit(expr) as GlyphScriptValue ??
+                    throw new InvalidOperationException("Failed to evaluate matrix element expression"))
+                .ToList())
+            .ToList();
+
+        if (rows.Count == 0 || rows[0].Count == 0)
+            throw new InvalidSyntaxException(context, "Matrix cannot be empty");
+
+        var elementType = rows[0][0].Type;
+
+        // Ensure all rows have the same number of elements and types match
+        foreach (var row in rows)
+        {
+            if (row.Count != rows[0].Count)
+                throw new InvalidSyntaxException(context, "All rows in the matrix must have the same number of elements");
+
+            if (row.Any(value => value.Type != elementType))
+                throw new InvalidSyntaxException(context, "All elements in the matrix must be of the same type");
+        }
+
+        var matrixOperationSignature = new OperationSignature(operationKind, [elementType]);
+        var createMatrixOperation = _availableOperations.GetValueOrDefault(matrixOperationSignature);
+
+        if (createMatrixOperation is null)
+            throw new OperationNotAvailableException(context, matrixOperationSignature);
+
+        return createMatrixOperation(context, rows.SelectMany(row => row).ToArray());
+    }
+
     public override object? VisitArrayAccessExp(GlyphScriptParser.ArrayAccessExpContext context)
     {
         const OperationKind operationKind = OperationKind.ArrayAccess;
@@ -469,6 +532,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.STRING_TYPE() != null) return GlyphScriptType.String;
         if (context.BOOLEAN_TYPE() != null) return GlyphScriptType.Boolean;
         if (context.arrayOfType() != null) return GlyphScriptType.Array;
+        if (context.matrixOfType() != null) return GlyphScriptType.Matrix;
         throw new InvalidOperationException("Invalid type");
     }
 
@@ -483,6 +547,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             GlyphScriptType.String => LLVM.PointerType(LLVM.Int8Type(), 0),
             GlyphScriptType.Boolean => LLVM.Int1Type(),
             GlyphScriptType.Array when arrayInfo != null => LLVM.PointerType(LLVM.Int8Type(), 0),
+            GlyphScriptType.Matrix => LLVM.PointerType(LLVM.Int8Type(), 0), // Add support for Matrix
             _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
     }

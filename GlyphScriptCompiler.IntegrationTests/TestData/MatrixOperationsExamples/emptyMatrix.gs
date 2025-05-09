@@ -1,0 +1,2 @@
+🧮🔢 emptyMatrix = []
+📢 emptyMatrix

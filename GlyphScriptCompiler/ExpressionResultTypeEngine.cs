@@ -93,6 +93,18 @@ public class ExpressionResultTypeEngine
         };
     }
 
+    public GlyphScriptType GetMatrixMultiplicationResultType(ParserRuleContext context, GlyphScriptType a, GlyphScriptType b)
+{
+    if (a == GlyphScriptType.Matrix && b == GlyphScriptType.Matrix)
+        return GlyphScriptType.Matrix;
+
+    throw new InvalidBinaryExpressionTypesException(context)
+    {
+        FirsType = a,
+        SecondType = b
+    };
+}
+
     public GlyphScriptType GetDivisionResultType(ParserRuleContext context, GlyphScriptType a, GlyphScriptType b)
     {
         var types = (a, b);
