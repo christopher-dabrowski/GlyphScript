@@ -14,6 +14,7 @@ statement
     | read
     | ifStatement
     | whileStatement
+    | block
     ;
 
 expression
@@ -41,7 +42,6 @@ whileStatement
 
 block
     : BEGIN NEWLINE (statement NEWLINE)* END
-    | statement
     ;
 
 print
