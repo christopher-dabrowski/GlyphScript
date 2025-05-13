@@ -89,7 +89,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var result = type == GlyphScriptType.Array && arrayInfo != null
             ? new GlyphScriptValue(variable, type, arrayInfo)
-            :new GlyphScriptValue(variable, type);
+            : new GlyphScriptValue(variable, type);
 
         _variables[id] = result;
         return result;
@@ -279,8 +279,58 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             ?? throw new InvalidOperationException($"Failed to create immediate value for type {type}");
     }
 
-    public override object? VisitParenthesisExp(GlyphScriptParser.ParenthesisExpContext context) =>
-        Visit(context.expression());
+    public override object? VisitIfStatement(GlyphScriptParser.IfStatementContext context)
+    {
+        var conditionValue = Visit(context.expression()) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to evaluate if condition expression");
+
+        if (conditionValue.Type != GlyphScriptType.Boolean)
+            throw new InvalidSyntaxException(context, $"Condition in if statement must be a boolean expression. Found: {conditionValue.Type}");
+
+        var currentFunction = LLVM.GetBasicBlockParent(LLVM.GetInsertBlock(_llvmBuilder));
+        var thenBlock = LLVM.AppendBasicBlock(currentFunction, "if_then");
+        LLVMBasicBlockRef? elseBlock = null;
+        if (context.ELSE() != null)
+        {
+            elseBlock = LLVM.AppendBasicBlock(currentFunction, "if_else");
+        }
+        var mergeBlock = LLVM.AppendBasicBlock(currentFunction, "if_merge");
+
+        if (elseBlock != null)
+            LLVM.BuildCondBr(_llvmBuilder, conditionValue.Value, thenBlock, elseBlock.Value);
+        else
+            LLVM.BuildCondBr(_llvmBuilder, conditionValue.Value, thenBlock, mergeBlock);
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, thenBlock);
+        Visit(context.block(0));
+        LLVM.BuildBr(_llvmBuilder, mergeBlock);
+
+        if (elseBlock != null)
+        {
+            LLVM.PositionBuilderAtEnd(_llvmBuilder, elseBlock.Value);
+            Visit(context.block(1));
+            LLVM.BuildBr(_llvmBuilder, mergeBlock);
+        }
+
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+
+        return null;
+    }
+
+    public override object? VisitBlock(GlyphScriptParser.BlockContext context)
+    {
+        if (context.BEGIN() != null)
+        {
+            var statements = context.statement();
+            foreach (var statement in statements)
+            {
+                Visit(statement);
+            }
+            return null;
+        }
+
+        return Visit(context.statement(0));
+    }
 
     public override object? VisitMulDivExp(GlyphScriptParser.MulDivExpContext context)
     {
