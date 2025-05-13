@@ -45,6 +45,13 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitStatement([NotNull] GlyphScriptParser.StatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>greaterThanExpr</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitGreaterThanExpr([NotNull] GlyphScriptParser.GreaterThanExprContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>notExpr</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
@@ -72,6 +79,13 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitMulDivExp([NotNull] GlyphScriptParser.MulDivExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>lessThanExpr</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitLessThanExpr([NotNull] GlyphScriptParser.LessThanExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>parenthesisExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
@@ -107,6 +121,13 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitValueExp([NotNull] GlyphScriptParser.ValueExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>equalityExpr</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitEqualityExpr([NotNull] GlyphScriptParser.EqualityExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="GlyphScriptParser.print"/>.
 	/// </summary>

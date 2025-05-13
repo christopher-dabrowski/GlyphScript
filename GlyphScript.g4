@@ -24,6 +24,9 @@ expression
     | expression '[' expression ']'                                   # arrayAccessExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
+    | expression EQUALITY_SYMBOL expression                           # equalityExpr
+    | expression LESS_THAN_SYMBOL expression                          # lessThanExpr
+    | expression GREATER_THAN_SYMBOL expression                       # greaterThanExpr
     ;
 
 print
@@ -193,6 +196,18 @@ XOR_SYMBOL
     : CROSSED_SWORDS_EMOJI
     ;
 
+EQUALITY_SYMBOL
+    : BALANCE_SCALE_EMOJI
+    ;
+
+LESS_THAN_SYMBOL
+    : ARROW_DOWN_EMOJI
+    ;
+
+GREATER_THAN_SYMBOL
+    : ARROW_UP_EMOJI
+    ;
+
 ID
     : [a-zA-Z_] [a-zA-Z_0-9]*
     ;
@@ -300,4 +315,19 @@ fragment NO_ENTRY_SIGN_EMOJI
 fragment PACKAGE_EMOJI
     : '📦'
     | ':package:'
+    ;
+
+fragment BALANCE_SCALE_EMOJI
+    : '⚖️'
+    | ':balance_scale:'
+    ;
+
+fragment ARROW_DOWN_EMOJI
+    : '⬇️'
+    | ':arrow_down:'
+    ;
+
+fragment ARROW_UP_EMOJI
+    : '⬆️'
+    | ':arrow_up:'
     ;
