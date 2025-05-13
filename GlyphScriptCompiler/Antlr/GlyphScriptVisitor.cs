@@ -129,6 +129,18 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitValueExp([NotNull] GlyphScriptParser.ValueExpContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.ifStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitIfStatement([NotNull] GlyphScriptParser.IfStatementContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.block"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitBlock([NotNull] GlyphScriptParser.BlockContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="GlyphScriptParser.print"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

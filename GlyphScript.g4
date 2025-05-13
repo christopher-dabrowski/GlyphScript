@@ -12,6 +12,7 @@ statement
     | print
     | assignment
     | read
+    | ifStatement
     ;
 
 expression
@@ -27,6 +28,15 @@ expression
     | expression EQUALITY_SYMBOL expression                           # comparisonExpr
     | expression LESS_THAN_SYMBOL expression                          # lessThanExpr
     | expression GREATER_THAN_SYMBOL expression                       # greaterThanExpr
+    ;
+
+ifStatement
+    : IF expression block (ELSE block)?
+    ;
+
+block
+    : BEGIN NEWLINE (statement NEWLINE)* END
+    | statement
     ;
 
 print
@@ -208,6 +218,22 @@ GREATER_THAN_SYMBOL
     : ARROW_UP_EMOJI
     ;
 
+BEGIN
+    : OPEN_BOOK_EMOJI
+    ;
+
+END
+    : CLOSED_BOOK_EMOJI
+    ;
+
+IF
+    : THINKING_EMOJI
+    ;
+
+ELSE
+    : UPSIDE_DOWN_FACE_EMOJI
+    ;
+
 ID
     : [a-zA-Z_] [a-zA-Z_0-9]*
     ;
@@ -330,4 +356,24 @@ fragment ARROW_DOWN_EMOJI
 fragment ARROW_UP_EMOJI
     : '⬆️'
     | ':arrow_up:'
+    ;
+
+fragment OPEN_BOOK_EMOJI
+    : '📖'
+    | ':open_book:'
+    ;
+
+fragment CLOSED_BOOK_EMOJI
+    : '📕'
+    | ':closed_book:'
+    ;
+
+fragment THINKING_EMOJI
+    : '🤔'
+    | ':thinking:'
+    ;
+
+fragment UPSIDE_DOWN_FACE_EMOJI
+    : '🙃'
+    | ':upside_down_face:'
     ;
