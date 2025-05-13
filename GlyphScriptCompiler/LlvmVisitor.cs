@@ -10,12 +10,17 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     private readonly LLVMBuilderRef _llvmBuilder = LLVM.CreateBuilder();
     private readonly ExpressionResultTypeEngine _expressionResultTypeEngine = new();
 
-    private readonly Dictionary<string, GlyphScriptValue> _variables = [];
+    private VariableScope _currentScope;
+    private readonly Stack<VariableScope> _scopeStack = new();
     private readonly Dictionary<OperationSignature, OperationImplementation> _availableOperations = new();
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
     {
         LlvmModule = llvmModule;
+
+        // Initialize the global scope
+        _currentScope = new VariableScope();
+        _scopeStack.Push(_currentScope);
 
         IOperationProvider[] initialOperationProviders =
         [
@@ -33,6 +38,28 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             provider.Initialize();
             RegisterOperations(provider);
         }
+    }
+
+    /// <summary>
+    /// Creates and enters a new variable scope
+    /// </summary>
+    private void EnterScope()
+    {
+        var newScope = new VariableScope(_currentScope);
+        _scopeStack.Push(newScope);
+        _currentScope = newScope;
+    }
+
+    /// <summary>
+    /// Exits the current variable scope and returns to the parent scope
+    /// </summary>
+    private void ExitScope()
+    {
+        if (_scopeStack.Count <= 1)
+            throw new InvalidOperationException("Cannot exit the global scope");
+
+        _scopeStack.Pop();
+        _currentScope = _scopeStack.Peek();
     }
 
     private void RegisterOperations(IOperationProvider provider)
@@ -79,7 +106,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var value = createDefaultValueOperation(context, [])
             ?? throw new InvalidOperationException($"Failed to create default value for type {type}");
 
-        if (_variables.ContainsKey(id))
+        if (_currentScope.HasLocalVariable(id))
             throw new InvalidOperationException($"Variable '{id}' is already defined.");
 
         var llvmType = GetLlvmType(type, arrayInfo);
@@ -91,7 +118,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             ? new GlyphScriptValue(variable, type, arrayInfo)
             : new GlyphScriptValue(variable, type);
 
-        _variables[id] = result;
+        _currentScope.DeclareVariable(id, result);
         return result;
     }
 
@@ -107,7 +134,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
             throw new InvalidOperationException("Failed to create expression");
 
-        if (_variables.ContainsKey(id))
+        if (_currentScope.HasLocalVariable(id))
             throw new DuplicateVariableDeclarationException(context) { VariableName = id };
 
         if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(type, expressionValue.Type))
@@ -135,7 +162,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             result = new GlyphScriptValue(variable, type);
         }
 
-        _variables[id] = result;
+        _currentScope.DeclareVariable(id, result);
         return result;
     }
 
@@ -150,7 +177,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var expressionValue = Visit(context.expression(0)) as GlyphScriptValue ??
             throw new InvalidOperationException("Failed to create expression");
 
-        if (!_variables.TryGetValue(id, out var variable))
+        if (!_currentScope.TryGetVariable(id, out var variable))
             throw new UndefinedVariableUsageException(context) { VariableName = id };
 
         if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(variable.Type, expressionValue.Type))
@@ -175,7 +202,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var rhsValue = Visit(context.expression(1)) as GlyphScriptValue ??
                        throw new InvalidOperationException("Failed to create expression value");
 
-        if (!_variables.TryGetValue(id, out var arrayVariable))
+        if (!_currentScope.TryGetVariable(id, out var arrayVariable))
             throw new UndefinedVariableUsageException(context) { VariableName = id };
 
         if (arrayVariable.Type != GlyphScriptType.Array || arrayVariable.ArrayInfo == null)
@@ -233,7 +260,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var id = context.ID().GetText();
 
-        if (!_variables.TryGetValue(id, out var variable))
+        if (!_currentScope.TryGetVariable(id, out var variable))
             throw new UndefinedVariableUsageException(context) { VariableName = id };
 
         var operationSignature = new OperationSignature(operationKind, [variable.Type]);
@@ -301,12 +328,14 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         else
             LLVM.BuildCondBr(_llvmBuilder, conditionValue.Value, thenBlock, mergeBlock);
 
+        // The 'then' block creates its own scope via the Visit(block) call
         LLVM.PositionBuilderAtEnd(_llvmBuilder, thenBlock);
         Visit(context.block(0));
         LLVM.BuildBr(_llvmBuilder, mergeBlock);
 
         if (elseBlock != null)
         {
+            // The 'else' block creates its own scope via the Visit(block) call
             LLVM.PositionBuilderAtEnd(_llvmBuilder, elseBlock.Value);
             Visit(context.block(1));
             LLVM.BuildBr(_llvmBuilder, mergeBlock);
@@ -321,12 +350,23 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     {
         if (context.BEGIN() != null)
         {
-            var statements = context.statement();
-            foreach (var statement in statements)
+            // Create a new scope for the block
+            EnterScope();
+
+            try
             {
-                Visit(statement);
+                var statements = context.statement();
+                foreach (var statement in statements)
+                {
+                    Visit(statement);
+                }
+                return null;
             }
-            return null;
+            finally
+            {
+                // Always exit the scope when leaving the block
+                ExitScope();
+            }
         }
 
         return Visit(context.statement(0));
@@ -391,7 +431,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public override object? VisitIdAtomExp(GlyphScriptParser.IdAtomExpContext context)
     {
         var id = context.ID().GetText();
-        if (!_variables.TryGetValue(id, out var variable))
+        if (!_currentScope.TryGetVariable(id, out var variable))
             throw new InvalidOperationException($"Variable '{id}' is not defined.");
 
         if (variable.Type == GlyphScriptType.Array && variable.ArrayInfo != null)
@@ -631,6 +671,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         LLVM.BuildCondBr(_llvmBuilder, conditionValue.Value, loopBlock, afterLoopBlock);
 
         // Position at the loop body
+        // The loop body creates its own scope via the Visit(block) call
         LLVM.PositionBuilderAtEnd(_llvmBuilder, loopBlock);
         Visit(context.block());
 
