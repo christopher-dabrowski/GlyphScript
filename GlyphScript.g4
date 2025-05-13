@@ -33,7 +33,7 @@ expression
     ;
 
 ifStatement
-    : IF expression block (ELSE block)?
+    : IF expression block NEWLINE? (ELSE block)?
     ;
 
 whileStatement
