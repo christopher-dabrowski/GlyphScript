@@ -385,6 +385,39 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return operation(context, [leftValue, rightValue]);
     }
 
+    public override object? VisitComparisonExpr(GlyphScriptParser.ComparisonExprContext context)
+    {
+        var leftValue = Visit(context.expression(0)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the left expression");
+        var rightValue = Visit(context.expression(1)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the right expression");
+
+        var operationKind = OperationKind.Comparison;
+        return VisitBinaryExpression(context, leftValue, rightValue, operationKind);
+    }
+
+    public override object? VisitLessThanExpr(GlyphScriptParser.LessThanExprContext context)
+    {
+        var leftValue = Visit(context.expression(0)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the left expression");
+        var rightValue = Visit(context.expression(1)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the right expression");
+
+        var operationKind = OperationKind.LessThan;
+        return VisitBinaryExpression(context, leftValue, rightValue, operationKind);
+    }
+
+    public override object? VisitGreaterThanExpr(GlyphScriptParser.GreaterThanExprContext context)
+    {
+        var leftValue = Visit(context.expression(0)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the left expression");
+        var rightValue = Visit(context.expression(1)) as GlyphScriptValue
+            ?? throw new InvalidOperationException("Unable to resolve the right expression");
+
+        var operationKind = OperationKind.GreaterThan;
+        return VisitBinaryExpression(context, leftValue, rightValue, operationKind);
+    }
+
     public override object? VisitArrayLiteral(GlyphScriptParser.ArrayLiteralContext context)
     {
         const OperationKind operationKind = OperationKind.CreateArray;
@@ -501,6 +534,21 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var mallocType = LLVM.FunctionType(i8PtrType, [LLVM.Int64Type()], false);
         LLVM.AddFunction(module, "malloc", mallocType);
+    }
+
+    private object? VisitBinaryExpression(
+        GlyphScriptParser.ExpressionContext context,
+        GlyphScriptValue left,
+        GlyphScriptValue right,
+        OperationKind operationKind)
+    {
+        var operationSignature = new OperationSignature(operationKind, [left.Type, right.Type]);
+
+        var operation = _availableOperations.GetValueOrDefault(operationSignature);
+        if (operation is null)
+            throw new OperationNotAvailableException(context, operationSignature);
+
+        return operation(context, [left, right]);
     }
 
     public void Dispose()
