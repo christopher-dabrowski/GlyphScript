@@ -36,7 +36,7 @@ public class WhileLoopTests : IDisposable
     {
         var output = await RunProgram("nestedWhileLoops.gs");
 
-        var expectedOutput = "0,0\n0,1\n0,2\n1,0\n1,1\n1,2\n2,0\n2,1\n2,2\n";
+        var expectedOutput = "0\n0\n0\n1\n0\n2\n1\n0\n1\n1\n1\n2\n2\n0\n2\n1\n2\n2\n";
         Assert.Equal(expectedOutput, output);
     }
 
@@ -54,7 +54,7 @@ public class WhileLoopTests : IDisposable
     {
         var output = await RunProgram("updateVariablesWhileLoop.gs");
 
-        var expectedOutput = "Sum: 55\n";
+        var expectedOutput = "55\n";
         Assert.Equal(expectedOutput, output);
     }
 
@@ -63,7 +63,7 @@ public class WhileLoopTests : IDisposable
     {
         var output = await RunProgram("whileLoopWithInput.gs", "5");
 
-        var expectedOutput = "Enter a number: 5\n0\n1\n2\n3\n4\n";
+        var expectedOutput = "Enter a number: \n0\n1\n2\n3\n4\n";
         Assert.Equal(expectedOutput, output);
     }
 

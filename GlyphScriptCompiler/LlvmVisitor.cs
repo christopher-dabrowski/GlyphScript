@@ -608,4 +608,38 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     {
         LLVM.DisposeBuilder(_llvmBuilder);
     }
+
+    public override object? VisitWhileStatement(GlyphScriptParser.WhileStatementContext context)
+    {
+        var currentFunction = LLVM.GetBasicBlockParent(LLVM.GetInsertBlock(_llvmBuilder));
+        var conditionBlock = LLVM.AppendBasicBlock(currentFunction, "while_cond");
+        var loopBlock = LLVM.AppendBasicBlock(currentFunction, "while_body");
+        var afterLoopBlock = LLVM.AppendBasicBlock(currentFunction, "while_end");
+
+        // Branch to the condition block
+        LLVM.BuildBr(_llvmBuilder, conditionBlock);
+
+        // Position at the condition block to evaluate the condition
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, conditionBlock);
+        var conditionValue = Visit(context.expression()) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to evaluate while condition expression");
+
+        if (conditionValue.Type != GlyphScriptType.Boolean)
+            throw new InvalidSyntaxException(context, $"Condition in while statement must be a boolean expression. Found: {conditionValue.Type}");
+
+        // Branch based on the condition
+        LLVM.BuildCondBr(_llvmBuilder, conditionValue.Value, loopBlock, afterLoopBlock);
+
+        // Position at the loop body
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, loopBlock);
+        Visit(context.block());
+
+        // At the end of the loop body, jump back to the condition
+        LLVM.BuildBr(_llvmBuilder, conditionBlock);
+
+        // Position at the block after the loop
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, afterLoopBlock);
+
+        return null;
+    }
 }

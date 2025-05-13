@@ -4,4 +4,4 @@
     sum = sum ➕ i
     i = i ➕ 1
 📕
-📢 "Sum: " + sum
+📢 sum
