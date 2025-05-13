@@ -24,7 +24,7 @@ expression
     | expression '[' expression ']'                                   # arrayAccessExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
-    | expression EQUALITY_SYMBOL expression                           # equalityExpr
+    | expression EQUALITY_SYMBOL expression                           # comparisonExpr
     | expression LESS_THAN_SYMBOL expression                          # lessThanExpr
     | expression GREATER_THAN_SYMBOL expression                       # greaterThanExpr
     ;

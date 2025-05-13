@@ -385,6 +385,22 @@ public partial class GlyphScriptParser : Parser {
 			else return visitor.VisitChildren(this);
 		}
 	}
+	public partial class ComparisonExprContext : ExpressionContext {
+		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext[] expression() {
+			return GetRuleContexts<ExpressionContext>();
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext expression(int i) {
+			return GetRuleContext<ExpressionContext>(i);
+		}
+		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQUALITY_SYMBOL() { return GetToken(GlyphScriptParser.EQUALITY_SYMBOL, 0); }
+		public ComparisonExprContext(ExpressionContext context) { CopyFrom(context); }
+		[System.Diagnostics.DebuggerNonUserCode]
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IGlyphScriptVisitor<TResult> typedVisitor = visitor as IGlyphScriptVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitComparisonExpr(this);
+			else return visitor.VisitChildren(this);
+		}
+	}
 	public partial class IdAtomExpContext : ExpressionContext {
 		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode ID() { return GetToken(GlyphScriptParser.ID, 0); }
 		public IdAtomExpContext(ExpressionContext context) { CopyFrom(context); }
@@ -436,22 +452,6 @@ public partial class GlyphScriptParser : Parser {
 		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
 			IGlyphScriptVisitor<TResult> typedVisitor = visitor as IGlyphScriptVisitor<TResult>;
 			if (typedVisitor != null) return typedVisitor.VisitValueExp(this);
-			else return visitor.VisitChildren(this);
-		}
-	}
-	public partial class EqualityExprContext : ExpressionContext {
-		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext[] expression() {
-			return GetRuleContexts<ExpressionContext>();
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ExpressionContext expression(int i) {
-			return GetRuleContext<ExpressionContext>(i);
-		}
-		[System.Diagnostics.DebuggerNonUserCode] public ITerminalNode EQUALITY_SYMBOL() { return GetToken(GlyphScriptParser.EQUALITY_SYMBOL, 0); }
-		public EqualityExprContext(ExpressionContext context) { CopyFrom(context); }
-		[System.Diagnostics.DebuggerNonUserCode]
-		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
-			IGlyphScriptVisitor<TResult> typedVisitor = visitor as IGlyphScriptVisitor<TResult>;
-			if (typedVisitor != null) return typedVisitor.VisitEqualityExpr(this);
 			else return visitor.VisitChildren(this);
 		}
 	}
@@ -606,7 +606,7 @@ public partial class GlyphScriptParser : Parser {
 						break;
 					case 5:
 						{
-						_localctx = new EqualityExprContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new ComparisonExprContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 71;
 						if (!(Precpred(Context, 3))) throw new FailedPredicateException(this, "Precpred(Context, 3)");

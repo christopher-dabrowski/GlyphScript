@@ -94,6 +94,13 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitParenthesisExp([NotNull] GlyphScriptParser.ParenthesisExpContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>comparisonExpr</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitComparisonExpr([NotNull] GlyphScriptParser.ComparisonExprContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>idAtomExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
@@ -121,13 +128,6 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitValueExp([NotNull] GlyphScriptParser.ValueExpContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>equalityExpr</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitEqualityExpr([NotNull] GlyphScriptParser.EqualityExprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="GlyphScriptParser.print"/>.
 	/// </summary>
