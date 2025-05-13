@@ -229,6 +229,73 @@ public class IntegerOperations : IOperationProvider
         return new GlyphScriptValue(LLVM.ConstInt(LLVM.Int32Type(), (ulong)value, false), GlyphScriptType.Int);
     }
 
+    public GlyphScriptValue? ComparisonImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 2)
+            throw new InvalidOperationException("Invalid number of parameters for comparison");
+
+        var left = parameters[0];
+        var right = parameters[1];
+
+        if (left.Type != GlyphScriptType.Int || right.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid types for comparison");
+
+        return Compare(left, right);
+    }
+    public GlyphScriptValue Compare(GlyphScriptValue left, GlyphScriptValue right)
+    {
+        if (left.Type != GlyphScriptType.Int || right.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid types for comparison");
+
+        var result = LLVM.BuildICmp(_llvmBuilder, LLVMIntPredicate.LLVMIntEQ, left.Value, right.Value, "cmp_int");
+        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+    }
+
+    public GlyphScriptValue? LesThanImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 2)
+            throw new InvalidOperationException("Invalid number of parameters for less than operation");
+
+        var left = parameters[0];
+        var right = parameters[1];
+
+        if (left.Type != GlyphScriptType.Int || right.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid types for less than operation");
+
+        return LessThan(left, right);
+    }
+    public GlyphScriptValue LessThan(GlyphScriptValue left, GlyphScriptValue right)
+    {
+        if (left.Type != GlyphScriptType.Int || right.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid types for less than operation");
+
+        var result = LLVM.BuildICmp(_llvmBuilder, LLVMIntPredicate.LLVMIntSLT, left.Value, right.Value, "lt_int");
+        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+    }
+
+    public GlyphScriptValue? GreaterThanImplementation(RuleContext context, IReadOnlyList<GlyphScriptValue> parameters)
+    {
+        if (parameters.Count != 2)
+            throw new InvalidOperationException("Invalid number of parameters for greater than operation");
+
+        var left = parameters[0];
+        var right = parameters[1];
+
+        if (left.Type != GlyphScriptType.Int || right.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid types for greater than operation");
+
+        return GreaterThan(left, right);
+    }
+    public GlyphScriptValue GreaterThan(GlyphScriptValue left, GlyphScriptValue right)
+    {
+        if (left.Type != GlyphScriptType.Int || right.Type != GlyphScriptType.Int)
+            throw new InvalidOperationException("Invalid types for greater than operation");
+
+        var result = LLVM.BuildICmp(_llvmBuilder, LLVMIntPredicate.LLVMIntSGT, left.Value, right.Value, "gt_int");
+        return new GlyphScriptValue(result, GlyphScriptType.Boolean);
+    }
+
+
     public IReadOnlyDictionary<OperationSignature, OperationImplementation> Operations =>
         new Dictionary<OperationSignature, OperationImplementation>()
         {
@@ -240,6 +307,10 @@ public class IntegerOperations : IOperationProvider
             { new OperationSignature(Division, [GlyphScriptType.Int, GlyphScriptType.Int]), DivisionImplementation },
             { new OperationSignature(OperationKind.Power, [GlyphScriptType.Int, GlyphScriptType.Int]), PowerImplementation },
             { new OperationSignature(Print, [GlyphScriptType.Int]), PrintImplementation },
-            { new OperationSignature(Read, [GlyphScriptType.Int]), ReadImplementation }
+            { new OperationSignature(Read, [GlyphScriptType.Int]), ReadImplementation },
+
+            { new OperationSignature(Comparison, [GlyphScriptType.Int, GlyphScriptType.Int]), ComparisonImplementation },
+            { new OperationSignature(OperationKind.LessThan, [GlyphScriptType.Int, GlyphScriptType.Int]), LesThanImplementation },
+            { new OperationSignature(OperationKind.GreaterThan, [GlyphScriptType.Int, GlyphScriptType.Int]), GreaterThanImplementation }
         };
 }
