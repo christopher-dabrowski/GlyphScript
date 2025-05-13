@@ -135,6 +135,12 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitIfStatement([NotNull] GlyphScriptParser.IfStatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.whileStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitWhileStatement([NotNull] GlyphScriptParser.WhileStatementContext context);
+	/// <summary>
 	/// Visit a parse tree produced by <see cref="GlyphScriptParser.block"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

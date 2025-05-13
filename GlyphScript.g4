@@ -13,6 +13,7 @@ statement
     | assignment
     | read
     | ifStatement
+    | whileStatement
     ;
 
 expression
@@ -32,6 +33,10 @@ expression
 
 ifStatement
     : IF expression block (ELSE block)?
+    ;
+
+whileStatement
+    : WHILE expression block
     ;
 
 block
@@ -234,6 +239,10 @@ ELSE
     : UPSIDE_DOWN_FACE_EMOJI
     ;
 
+WHILE
+    : ARROWS_COUNTERCLOCKWISE
+    ;
+
 ID
     : [a-zA-Z_] [a-zA-Z_0-9]*
     ;
@@ -376,4 +385,9 @@ fragment THINKING_EMOJI
 fragment UPSIDE_DOWN_FACE_EMOJI
     : '🙃'
     | ':upside_down_face:'
+    ;
+
+fragment ARROWS_COUNTERCLOCKWISE
+    : '🔄'
+    | ':arrows_counterclockwise:'
     ;
