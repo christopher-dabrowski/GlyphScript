@@ -18,5 +18,9 @@ public enum OperationKind
 
     CreateArray,
     ArrayAccess,
-    ArrayElementAssignment
+    ArrayElementAssignment,
+
+    Comparison,
+    LessThan,
+    GreaterThan,
 }
