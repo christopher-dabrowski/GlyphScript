@@ -385,6 +385,9 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public override object? VisitValueExp(GlyphScriptParser.ValueExpContext context) =>
         Visit(context.immediateValue());
 
+    public override object? VisitParenthesisExp(GlyphScriptParser.ParenthesisExpContext context) =>
+        Visit(context.expression());
+
     public override object? VisitIdAtomExp(GlyphScriptParser.IdAtomExpContext context)
     {
         var id = context.ID().GetText();
