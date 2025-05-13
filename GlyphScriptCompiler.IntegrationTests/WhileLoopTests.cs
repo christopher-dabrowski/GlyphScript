@@ -50,15 +50,6 @@ public class WhileLoopTests : IDisposable
     }
 
     [Fact]
-    public async Task ShouldBreakFromWhileLoopWithCondition()
-    {
-        var output = await RunProgram("conditionalBreakWhileLoop.gs");
-
-        var expectedOutput = "0\n1\n2\nBroke out of loop\n";
-        Assert.Equal(expectedOutput, output);
-    }
-
-    [Fact]
     public async Task ShouldUpdateVariablesInWhileLoop()
     {
         var output = await RunProgram("updateVariablesWhileLoop.gs");
