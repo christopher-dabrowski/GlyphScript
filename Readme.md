@@ -13,7 +13,7 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 
 ## Etap 1: Proste operacje na zmiennych
 
-### Wymagania minimalne
+### Podstawa
 
 - [x] obsługa dwóch typów zmiennych: całkowite, rzeczywiste - [BasicNumberTypesTests.cs](GlyphScriptCompiler.IntegrationTests/BasicNumberTypesTests.cs)
 - [x] podstawowa obsługa standardowego wejścia-wyjścia - [SimpleIoTests.cs](GlyphScriptCompiler.IntegrationTests/SimpleIoTests.cs)
@@ -29,6 +29,21 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
   - [x] short-circuit boolean evaluation [BoolOperations.cs](GlyphScriptCompiler/TypeOperations/BoolOperations.cs)
 - [x] obsługa liczb o różnej precyzji [DifferentPrecisionOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/DifferentPrecisionOperationsTests.cs)
 - [x] obsługa typu ciąg znaków [StringOperationsTests.cs](GlyphScriptCompiler.IntegrationTests/StringOperationsTests.cs)
+
+## Etap 2: Sterowanie przepływem programu
+
+### Podstawa
+
+- [ ] instrukcja warunkowe, pętla,
+- [ ] możliwość tworzenia funkcji,
+- [ ] obsługa zasięgu zmiennych (lokalne i globalne, w pełni funkcjonalne zmienne lokalne)
+
+### Rozszerzenia
+
+- [ ] obsługa struktur
+- [ ] obsługa klas
+- [ ] dynamiczne typowanie
+- [ ] funkcje-generatory
 
 ## Decyzje Architektoniczne
 
