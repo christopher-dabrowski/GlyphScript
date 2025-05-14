@@ -89,7 +89,7 @@ Upraszcza to zdecydowanie czytelność [gramatyki GlyphScript](GlyphScript.g4).
 
 #### Kontekst
 
-W trakcie implementacji generacji kodu LLVM dla różnych typów danych i operacji, klasa LlvmVisitor zaczęła rozrastać się nadmiernie, co utrudniało jej utrzymanie.
+W trakcie implementacji generacji kodu LLVM dla różnych typów danych i operacji klasa LlvmVisitor zaczęła rozrastać się nadmiernie, co utrudniało jej utrzymanie.
 
 #### Decyzja
 
