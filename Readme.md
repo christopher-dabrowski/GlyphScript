@@ -34,9 +34,9 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 
 ### Podstawa
 
-- [ ] instrukcja warunkowe, pętla,
+- [x] instrukcja warunkowe, pętla - [IfElseStatementTests](GlyphScriptCompiler.IntegrationTests/IfElseStatementTests.cs), [WhileLoopTests](GlyphScriptCompiler.IntegrationTests/WhileLoopTests.cs)
 - [ ] możliwość tworzenia funkcji,
-- [ ] obsługa zasięgu zmiennych (lokalne i globalne, w pełni funkcjonalne zmienne lokalne)
+- [x] obsługa zasięgu zmiennych (lokalne i globalne, w pełni funkcjonalne zmienne lokalne) - [VariableScopeTests](GlyphScriptCompiler.IntegrationTests/VariableScopeTests.cs)
 
 ### Rozszerzenia
 
