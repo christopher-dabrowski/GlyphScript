@@ -45,6 +45,48 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitStatement([NotNull] GlyphScriptParser.StatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>functionCallExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFunctionCallExp([NotNull] GlyphScriptParser.FunctionCallExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>mulDivExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMulDivExp([NotNull] GlyphScriptParser.MulDivExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>lessThanExpr</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitLessThanExpr([NotNull] GlyphScriptParser.LessThanExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>comparisonExpr</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitComparisonExpr([NotNull] GlyphScriptParser.ComparisonExprContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>idAtomExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitIdAtomExp([NotNull] GlyphScriptParser.IdAtomExpContext context);
+	/// <summary>
+	/// Visit a parse tree produced by the <c>addSubExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitAddSubExp([NotNull] GlyphScriptParser.AddSubExpContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>greaterThanExpr</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
@@ -73,20 +115,6 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitXorExp([NotNull] GlyphScriptParser.XorExpContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>mulDivExp</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitMulDivExp([NotNull] GlyphScriptParser.MulDivExpContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>lessThanExpr</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitLessThanExpr([NotNull] GlyphScriptParser.LessThanExprContext context);
-	/// <summary>
 	/// Visit a parse tree produced by the <c>parenthesisExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
@@ -94,33 +122,12 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitParenthesisExp([NotNull] GlyphScriptParser.ParenthesisExpContext context);
 	/// <summary>
-	/// Visit a parse tree produced by the <c>comparisonExpr</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitComparisonExpr([NotNull] GlyphScriptParser.ComparisonExprContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>idAtomExp</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitIdAtomExp([NotNull] GlyphScriptParser.IdAtomExpContext context);
-	/// <summary>
 	/// Visit a parse tree produced by the <c>arrayAccessExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitArrayAccessExp([NotNull] GlyphScriptParser.ArrayAccessExpContext context);
-	/// <summary>
-	/// Visit a parse tree produced by the <c>addSubExp</c>
-	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitAddSubExp([NotNull] GlyphScriptParser.AddSubExpContext context);
 	/// <summary>
 	/// Visit a parse tree produced by the <c>valueExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
@@ -140,6 +147,42 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitWhileStatement([NotNull] GlyphScriptParser.WhileStatementContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.functionDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFunctionDeclaration([NotNull] GlyphScriptParser.FunctionDeclarationContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.functionCall"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFunctionCall([NotNull] GlyphScriptParser.FunctionCallContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.returnStatement"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitReturnStatement([NotNull] GlyphScriptParser.ReturnStatementContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.parameterList"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParameterList([NotNull] GlyphScriptParser.ParameterListContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.parameter"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitParameter([NotNull] GlyphScriptParser.ParameterContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.argumentList"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitArgumentList([NotNull] GlyphScriptParser.ArgumentListContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="GlyphScriptParser.block"/>.
 	/// </summary>

@@ -15,6 +15,8 @@ statement
     | ifStatement
     | whileStatement
     | block
+    | functionDeclaration
+    | returnStatement
     ;
 
 expression
@@ -25,6 +27,7 @@ expression
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
     | expression XOR_SYMBOL expression                                # xorExp
     | expression '[' expression ']'                                   # arrayAccessExp
+    | functionCall                                                    # functionCallExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
     | expression EQUALITY_SYMBOL expression                           # comparisonExpr
@@ -38,6 +41,30 @@ ifStatement
 
 whileStatement
     : WHILE expression block
+    ;
+
+functionDeclaration
+    : FUNCTION type ID '(' parameterList? ')' block
+    ;
+
+functionCall
+    : ID '(' argumentList? ')'
+    ;
+
+returnStatement
+    : RETURN expression?
+    ;
+
+parameterList
+    : parameter (',' parameter)*
+    ;
+
+parameter
+    : type ID
+    ;
+
+argumentList
+    : expression (',' expression)*
     ;
 
 block
@@ -88,6 +115,7 @@ type
     | DOUBLE
     | STRING_TYPE
     | BOOLEAN_TYPE
+    | VOID_TYPE
     | arrayOfType
     ;
 
@@ -137,6 +165,10 @@ FLOAT
 
 BOOLEAN_TYPE
     : OK_EMOJI
+    ;
+
+VOID_TYPE
+    : VOID_EMOJI
     ;
 
 WRITE
@@ -241,6 +273,14 @@ ELSE
 
 WHILE
     : ARROWS_COUNTERCLOCKWISE
+    ;
+
+FUNCTION
+    : GEAR_EMOJI
+    ;
+
+RETURN
+    : LEFTWARDS_ARROW_EMOJI
     ;
 
 ID
@@ -390,4 +430,23 @@ fragment UPSIDE_DOWN_FACE_EMOJI
 fragment ARROWS_COUNTERCLOCKWISE
     : '🔄'
     | ':arrows_counterclockwise:'
+    ;
+
+fragment GEAR_EMOJI
+    : '⚙️'
+    | ':gear:'
+    ;
+
+fragment LEFTWARDS_ARROW_EMOJI
+    : '↩️'
+    | ':leftwards_arrow_with_hook:'
+    | '⬅️'
+    | ':arrow_left:'
+    ;
+
+fragment VOID_EMOJI
+    : '🕳️'
+    | ':hole:'
+    | '⚫'
+    | ':black_circle:'
     ;
