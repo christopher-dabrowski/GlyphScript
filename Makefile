@@ -14,6 +14,9 @@ compile:
 		--input $(SOURCE_FILE) \
 		--output $(OUTPUT_FILE)
 
+run: compile
+	lli $(OUTPUT_FILE)
+
 generateCompiler:
 	antlr \
 		-Dlanguage=CSharp \

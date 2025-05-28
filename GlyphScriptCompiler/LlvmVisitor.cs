@@ -13,7 +13,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     private VariableScope _currentScope;
     private readonly Stack<VariableScope> _scopeStack = new();
     private readonly Dictionary<OperationSignature, OperationImplementation> _availableOperations = new();
-    
+
     // Function context tracking
     private FunctionInfo? _currentFunction;
     private readonly Stack<FunctionInfo> _functionStack = new();
@@ -757,10 +757,10 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         // Create function info and register it
         var functionInfo = new FunctionInfo(functionName, returnType, parameters.ToArray(), llvmFunction);
-        
+
         if (_currentScope.HasLocalFunction(functionName))
             throw new InvalidOperationException($"Function '{functionName}' is already defined in the current scope.");
-        
+
         _currentScope.DeclareFunction(functionName, functionInfo);
 
         // Create entry block for function
@@ -778,11 +778,11 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             {
                 var (paramType, paramName) = parameters[i];
                 var param = LLVM.GetParam(llvmFunction, (uint)i);
-                
+
                 // Allocate space for parameter and store the parameter value
                 var paramAlloca = LLVM.BuildAlloca(_llvmBuilder, GetLlvmType(paramType), paramName);
                 LLVM.BuildStore(_llvmBuilder, param, paramAlloca);
-                
+
                 var paramValue = new GlyphScriptValue(paramAlloca, paramType);
                 _currentScope.DeclareVariable(paramName, paramValue);
             }
@@ -813,7 +813,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public override object? VisitFunctionCall(GlyphScriptParser.FunctionCallContext context)
     {
         var functionName = context.ID().GetText();
-        
+
         if (!_currentScope.TryGetFunction(functionName, out var functionInfo))
             throw new InvalidOperationException($"Function '{functionName}' is not defined.");
 
@@ -839,7 +839,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         {
             var expectedType = functionInfo.Parameters[i].Type;
             var actualType = arguments[i].Type;
-            
+
             if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(expectedType, actualType))
                 throw new InvalidOperationException(
                     $"Function '{functionName}' parameter {i + 1} expects {expectedType} but got {actualType}");
@@ -847,7 +847,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         // Call function
         var argValues = arguments.Select(arg => arg.Value).ToArray();
-        
+
         if (functionInfo.ReturnType == GlyphScriptType.Void)
         {
             // For void functions, don't assign a name to the call
