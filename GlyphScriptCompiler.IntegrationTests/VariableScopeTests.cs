@@ -58,6 +58,15 @@ public class VariableScopeTests : IDisposable
         Assert.Equal(expectedOutput, output);
     }
 
+    [Fact]
+    public async Task ShouldAccessGlobalVariablesFromFunction()
+    {
+        var output = await RunProgram("functionAccessGlobal.gs");
+
+        var expectedOutput = "7\n";
+        Assert.Equal(expectedOutput, output);
+    }
+
     public void Dispose()
     {
         _runner.Dispose();

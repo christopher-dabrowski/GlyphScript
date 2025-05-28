@@ -97,19 +97,123 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     {
         SetupGlobalFunctions(LlvmModule);
 
-        // First pass: declare all functions to allow forward references
+        // First pass: declare all function signatures to allow forward references
         foreach (var statement in context.statement() ?? [])
         {
             if (statement.functionDeclaration() != null)
             {
-                Visit(statement.functionDeclaration());
+                VisitFunctionSignature(statement.functionDeclaration());
+            }
+        }
+
+        // Second pass: declare all global variables with default values
+        foreach (var statement in context.statement() ?? [])
+        {
+            if (statement.functionDeclaration() == null && statement.declaration() != null)
+            {
+                var declaration = statement.declaration();
+                
+                // Handle default declarations (e.g., 🔢 x)
+                if (declaration.defaultDeclaration() != null)
+                {
+                    var defaultDecl = declaration.defaultDeclaration();
+                    var type = GetTypeFromContext(defaultDecl.type());
+                    var id = defaultDecl.ID().GetText();
+
+                    ArrayTypeInfo? arrayInfo = null;
+                    if (type == GlyphScriptType.Array)
+                        arrayInfo = Visit(defaultDecl.type().arrayOfType()) as ArrayTypeInfo;
+
+                    // Get default value for the type
+                    var operationSignature = new OperationSignature(OperationKind.DefaultValue, [type]);
+                    var createDefaultValueOperation = _availableOperations.GetValueOrDefault(operationSignature);
+                    if (createDefaultValueOperation is null)
+                        throw new OperationNotAvailableException(defaultDecl, operationSignature);
+
+                    var defaultValue = createDefaultValueOperation(defaultDecl, [])
+                        ?? throw new InvalidOperationException($"Failed to create default value for type {type}");
+
+                    // Create the global variable with default value
+                    var llvmType = GetLlvmType(type, arrayInfo);
+                    var variable = LLVM.AddGlobal(LlvmModule, llvmType, id);
+                    LLVM.SetInitializer(variable, defaultValue.Value);
+
+                    GlyphScriptValue result;
+                    if (type == GlyphScriptType.Array && arrayInfo != null)
+                    {
+                        result = new GlyphScriptValue(variable, type, arrayInfo);
+                    }
+                    else
+                    {
+                        result = new GlyphScriptValue(variable, type);
+                    }
+
+                    _currentScope.DeclareVariable(id, result);
+                }
+                // Handle initializing declarations (e.g., 📦🔢 ages = [21, 34, 27])
+                else if (declaration.initializingDeclaration() != null)
+                {
+                    var initDecl = declaration.initializingDeclaration();
+                    var type = GetTypeFromContext(initDecl.type());
+                    var id = initDecl.ID().GetText();
+
+                    ArrayTypeInfo? arrayInfo = null;
+                    if (type == GlyphScriptType.Array)
+                        arrayInfo = Visit(initDecl.type().arrayOfType()) as ArrayTypeInfo;
+
+                    // Create the global variable - for arrays use null pointer, for scalars use zero
+                    var llvmType = GetLlvmType(type, arrayInfo);
+                    var variable = LLVM.AddGlobal(LlvmModule, llvmType, id);
+                    
+                    LLVMValueRef initializer;
+                    if (type == GlyphScriptType.Array)
+                    {
+                        // For arrays, initialize with null pointer
+                        initializer = LLVM.ConstPointerNull(llvmType);
+                    }
+                    else
+                    {
+                        // For scalar types, get their default value
+                        var operationSignature = new OperationSignature(OperationKind.DefaultValue, [type]);
+                        var createDefaultValueOperation = _availableOperations.GetValueOrDefault(operationSignature);
+                        if (createDefaultValueOperation is null)
+                            throw new OperationNotAvailableException(initDecl, operationSignature);
+
+                        var defaultValue = createDefaultValueOperation(initDecl, [])
+                            ?? throw new InvalidOperationException($"Failed to create default value for type {type}");
+                        initializer = defaultValue.Value;
+                    }
+                    
+                    LLVM.SetInitializer(variable, initializer);
+
+                    GlyphScriptValue result;
+                    if (type == GlyphScriptType.Array && arrayInfo != null)
+                    {
+                        result = new GlyphScriptValue(variable, type, arrayInfo);
+                    }
+                    else
+                    {
+                        result = new GlyphScriptValue(variable, type);
+                    }
+
+                    _currentScope.DeclareVariable(id, result);
+                }
+            }
+        }
+
+        // Third pass: process function bodies (now all globals are declared)
+        foreach (var statement in context.statement() ?? [])
+        {
+            if (statement.functionDeclaration() != null)
+            {
+                VisitFunctionBody(statement.functionDeclaration());
             }
         }
 
         // Create main function for the program execution
         LlvmHelper.CreateMain(LlvmModule, _llvmBuilder);
 
-        // Second pass: visit all non-function statements in main
+        // Fourth pass: process all statements in order (including initializing declarations)
         foreach (var statement in context.statement() ?? [])
         {
             if (statement.functionDeclaration() == null)
@@ -149,13 +253,43 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var value = createDefaultValueOperation(context, [])
             ?? throw new InvalidOperationException($"Failed to create default value for type {type}");
 
+        // Check for variable redeclaration in the current scope only
+        // Exception: Allow re-declaration only for global variables during different compilation passes
+        // This happens when initializing declarations (e.g., 📦🔢 ages = [21, 34, 27]) 
+        // are processed in the second pass (for arrays) and fourth pass (for all declarations)
         if (_currentScope.HasLocalVariable(id))
-            throw new InvalidOperationException($"Variable '{id}' is already defined.");
+        {
+            // Allow reuse only if we're in global scope (first scope) AND this is an existing global variable from a previous pass
+            if (_scopeStack.Count == 1 && _currentScope.TryGetVariable(id, out var existingVariable))
+            {
+                // This is a global variable being reprocessed in a different pass
+                return existingVariable;
+            }
+            else
+            {
+                // This is a local variable redeclaration, which is not allowed
+                throw new InvalidOperationException($"Variable '{id}' is already defined.");
+            }
+        }
 
         var llvmType = GetLlvmType(type, arrayInfo);
-        var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
+        LLVMValueRef variable;
 
-        LLVM.BuildStore(_llvmBuilder, value.Value, variable);
+        // Check if we're in global scope (first scope on the stack, not nested)
+        bool isGlobalScope = _scopeStack.Count == 1;
+        
+        if (isGlobalScope)
+        {
+            // Create global variable
+            variable = LLVM.AddGlobal(LlvmModule, llvmType, id);
+            LLVM.SetInitializer(variable, value.Value);
+        }
+        else
+        {
+            // Create local variable (for block scopes or function scopes)
+            variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
+            LLVM.BuildStore(_llvmBuilder, value.Value, variable);
+        }
 
         var result = type == GlyphScriptType.Array && arrayInfo != null
             ? new GlyphScriptValue(variable, type, arrayInfo)
@@ -177,9 +311,6 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var expressionValue = Visit(context.expression()) as GlyphScriptValue ??
             throw new InvalidOperationException("Failed to create expression");
 
-        if (_currentScope.HasLocalVariable(id))
-            throw new DuplicateVariableDeclarationException(context) { VariableName = id };
-
         if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(type, expressionValue.Type))
         {
             throw new AssignmentOfInvalidTypeException(context)
@@ -190,10 +321,60 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             };
         }
 
-        var llvmType = GetLlvmType(type, arrayInfo);
-        var variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
+        // Check if the variable is already declared in the CURRENT scope only
+        // For global scope: allow reprocessing during multi-pass compilation
+        // For local scopes: declarations always create new variables (shadowing outer scopes)
+        if (_currentScope.HasLocalVariable(id))
+        {
+            // For global scope, allow reprocessing during different compilation passes
+            if (_scopeStack.Count == 1 && _currentScope.TryGetVariable(id, out var existingGlobalVariable))
+            {
+                // This is a global variable being reprocessed in a different pass
+                LLVM.BuildStore(_llvmBuilder, expressionValue.Value, existingGlobalVariable.Value);
+                return existingGlobalVariable;
+            }
+            else
+            {
+                // This is a duplicate declaration in the same scope, which is not allowed
+                throw new DuplicateVariableDeclarationException(context) { VariableName = id };
+            }
+        }
 
-        LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable);
+        var llvmType = GetLlvmType(type, arrayInfo);
+        LLVMValueRef variable;
+
+        // Check if we're in global scope (first scope on the stack, not nested)
+        bool isGlobalScope = _scopeStack.Count == 1;
+        
+        if (isGlobalScope)
+        {
+            // For global variables that are initialized with non-constant expressions (like function calls),
+            // we need to create the variable as uninitialized and then assign the value in main
+            variable = LLVM.AddGlobal(LlvmModule, llvmType, id);
+            
+            // Check if the expression value is a constant
+            var isConstant = LLVM.IsConstant(expressionValue.Value);
+            
+            if (isConstant)
+            {
+                LLVM.SetInitializer(variable, expressionValue.Value);
+            }
+            else
+            {
+                // For non-constant expressions, we'll initialize with a default value
+                // and store the actual value during main execution
+                LLVM.SetInitializer(variable, LLVM.ConstInt(llvmType, 0, false));
+                
+                // Store the actual value now (we're in main function context)
+                LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable);
+            }
+        }
+        else
+        {
+            // Create local variable (for block scopes or function scopes)
+            variable = LLVM.BuildAlloca(_llvmBuilder, llvmType, id);
+            LLVM.BuildStore(_llvmBuilder, expressionValue.Value, variable);
+        }
 
         GlyphScriptValue result;
         if (type == GlyphScriptType.Array && arrayInfo != null)
@@ -731,6 +912,19 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitFunctionDeclaration(GlyphScriptParser.FunctionDeclarationContext context)
     {
+        // Function declarations are handled in two phases by VisitFunctionSignature and VisitFunctionBody
+        // This method should not be called directly in the normal visitor pattern
+        var functionName = context.ID().GetText();
+        if (_currentScope.TryGetFunction(functionName, out var functionInfo))
+        {
+            return functionInfo;
+        }
+        
+        throw new InvalidOperationException($"Function '{functionName}' not found. This indicates an issue with the compilation pipeline.");
+    }
+
+    private object? VisitFunctionSignature(GlyphScriptParser.FunctionDeclarationContext context)
+    {
         var returnType = GetTypeFromContext(context.type());
         var functionName = context.ID().GetText();
 
@@ -763,8 +957,21 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         _currentScope.DeclareFunction(functionName, functionInfo);
 
+        return functionInfo;
+    }    private object? VisitFunctionBody(GlyphScriptParser.FunctionDeclarationContext context)
+    {
+        var functionName = context.ID().GetText();
+        
+        if (!_currentScope.TryGetFunction(functionName, out var functionInfo))
+            throw new InvalidOperationException($"Function '{functionName}' signature not found.");
+
+        var returnType = functionInfo.ReturnType;
+
+        // Save the current builder position (main function)
+        var previousBlock = LLVM.GetInsertBlock(_llvmBuilder);
+
         // Create entry block for function
-        var entryBlock = LLVM.AppendBasicBlock(llvmFunction, "entry");
+        var entryBlock = LLVM.AppendBasicBlock(functionInfo.LlvmFunction, "entry");
         LLVM.PositionBuilderAtEnd(_llvmBuilder, entryBlock);
 
         // Enter function context and new scope for parameters
@@ -774,10 +981,11 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         try
         {
             // Declare parameters as local variables
-            for (int i = 0; i < parameters.Count; i++)
+            for (int i = 0; i < functionInfo.Parameters.Length; i++)
             {
-                var (paramType, paramName) = parameters[i];
-                var param = LLVM.GetParam(llvmFunction, (uint)i);
+                var (paramType, paramName) = functionInfo.Parameters[i];
+                
+                var param = LLVM.GetParam(functionInfo.LlvmFunction, (uint)i);
 
                 // Allocate space for parameter and store the parameter value
                 var paramAlloca = LLVM.BuildAlloca(_llvmBuilder, GetLlvmType(paramType), paramName);
@@ -805,6 +1013,9 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         {
             ExitScope();
             ExitFunction();
+
+            // Restore the builder position back to the main function
+            LLVM.PositionBuilderAtEnd(_llvmBuilder, previousBlock);
         }
 
         return functionInfo;
@@ -858,7 +1069,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         {
             // For non-void functions, assign a name to the call result
             var result = LLVM.BuildCall(_llvmBuilder, functionInfo.LlvmFunction, argValues, "call");
-            return new GlyphScriptValue(result, functionInfo.ReturnType);
+            var returnValue = new GlyphScriptValue(result, functionInfo.ReturnType);
+            return returnValue;
         }
     }
 
