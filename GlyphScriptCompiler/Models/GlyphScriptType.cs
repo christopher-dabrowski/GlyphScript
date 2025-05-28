@@ -8,5 +8,6 @@ public enum GlyphScriptType
     Double,
     String,
     Boolean,
-    Array
+    Array,
+    Void
 }

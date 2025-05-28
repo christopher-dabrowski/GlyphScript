@@ -1,0 +1,5 @@
+⚙️ 🕳️ printHello() 📖
+    📢 "Hello, World!"
+📕
+
+printHello()

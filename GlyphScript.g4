@@ -16,6 +16,7 @@ statement
     | whileStatement
     | block
     | functionDeclaration
+    | functionCall
     | returnStatement
     ;
 

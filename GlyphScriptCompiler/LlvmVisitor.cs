@@ -13,6 +13,10 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     private VariableScope _currentScope;
     private readonly Stack<VariableScope> _scopeStack = new();
     private readonly Dictionary<OperationSignature, OperationImplementation> _availableOperations = new();
+    
+    // Function context tracking
+    private FunctionInfo? _currentFunction;
+    private readonly Stack<FunctionInfo> _functionStack = new();
 
     public LlvmVisitor(LLVMModuleRef llvmModule)
     {
@@ -62,6 +66,27 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         _currentScope = _scopeStack.Peek();
     }
 
+    /// <summary>
+    /// Enters a function context
+    /// </summary>
+    private void EnterFunction(FunctionInfo functionInfo)
+    {
+        _functionStack.Push(functionInfo);
+        _currentFunction = functionInfo;
+    }
+
+    /// <summary>
+    /// Exits the current function context
+    /// </summary>
+    private void ExitFunction()
+    {
+        if (_functionStack.Count == 0)
+            throw new InvalidOperationException("Cannot exit function context when not in a function");
+
+        _functionStack.Pop();
+        _currentFunction = _functionStack.Count > 0 ? _functionStack.Peek() : null;
+    }
+
     private void RegisterOperations(IOperationProvider provider)
     {
         foreach (var (operationSignature, implementation) in provider.Operations)
@@ -71,12 +96,30 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     public override object? VisitProgram(GlyphScriptParser.ProgramContext context)
     {
         SetupGlobalFunctions(LlvmModule);
+
+        // First pass: declare all functions to allow forward references
+        foreach (var statement in context.statement() ?? [])
+        {
+            if (statement.functionDeclaration() != null)
+            {
+                Visit(statement.functionDeclaration());
+            }
+        }
+
+        // Create main function for the program execution
         LlvmHelper.CreateMain(LlvmModule, _llvmBuilder);
 
-        var result = VisitChildren(context);
-        LLVM.BuildRet(_llvmBuilder, LLVM.ConstInt(LLVM.Int32Type(), 0, false));
+        // Second pass: visit all non-function statements in main
+        foreach (var statement in context.statement() ?? [])
+        {
+            if (statement.functionDeclaration() == null)
+            {
+                Visit(statement);
+            }
+        }
 
-        return result;
+        LLVM.BuildRet(_llvmBuilder, LLVM.ConstInt(LLVM.Int32Type(), 0, false));
+        return null;
     }
 
     public override object? VisitDeclaration(GlyphScriptParser.DeclarationContext context)
@@ -594,6 +637,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.DOUBLE() != null) return GlyphScriptType.Double;
         if (context.STRING_TYPE() != null) return GlyphScriptType.String;
         if (context.BOOLEAN_TYPE() != null) return GlyphScriptType.Boolean;
+        if (context.VOID_TYPE() != null) return GlyphScriptType.Void;
         if (context.arrayOfType() != null) return GlyphScriptType.Array;
         throw new InvalidOperationException("Invalid type");
     }
@@ -608,6 +652,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             GlyphScriptType.Double => LLVM.DoubleType(),
             GlyphScriptType.String => LLVM.PointerType(LLVM.Int8Type(), 0),
             GlyphScriptType.Boolean => LLVM.Int1Type(),
+            GlyphScriptType.Void => LLVM.VoidType(),
             GlyphScriptType.Array when arrayInfo != null => LLVM.PointerType(LLVM.Int8Type(), 0),
             _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
@@ -680,6 +725,176 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         // Position at the block after the loop
         LLVM.PositionBuilderAtEnd(_llvmBuilder, afterLoopBlock);
+
+        return null;
+    }
+
+    public override object? VisitFunctionDeclaration(GlyphScriptParser.FunctionDeclarationContext context)
+    {
+        var returnType = GetTypeFromContext(context.type());
+        var functionName = context.ID().GetText();
+
+        // Parse parameters
+        var parameters = new List<(GlyphScriptType Type, string Name)>();
+        if (context.parameterList() != null)
+        {
+            foreach (var param in context.parameterList().parameter())
+            {
+                var paramType = GetTypeFromContext(param.type());
+                var paramName = param.ID().GetText();
+                parameters.Add((paramType, paramName));
+            }
+        }
+
+        // Create LLVM function type
+        var paramTypes = parameters.Select(p => GetLlvmType(p.Type)).ToArray();
+        var llvmReturnType = GetLlvmType(returnType);
+        var functionType = LLVM.FunctionType(llvmReturnType, paramTypes, false);
+
+        // Create LLVM function
+        var llvmFunction = LLVM.AddFunction(LlvmModule, functionName, functionType);
+        LLVM.SetFunctionCallConv(llvmFunction, (uint)LLVMCallConv.LLVMCCallConv);
+
+        // Create function info and register it
+        var functionInfo = new FunctionInfo(functionName, returnType, parameters.ToArray(), llvmFunction);
+        
+        if (_currentScope.HasLocalFunction(functionName))
+            throw new InvalidOperationException($"Function '{functionName}' is already defined in the current scope.");
+        
+        _currentScope.DeclareFunction(functionName, functionInfo);
+
+        // Create entry block for function
+        var entryBlock = LLVM.AppendBasicBlock(llvmFunction, "entry");
+        LLVM.PositionBuilderAtEnd(_llvmBuilder, entryBlock);
+
+        // Enter function context and new scope for parameters
+        EnterFunction(functionInfo);
+        EnterScope();
+
+        try
+        {
+            // Declare parameters as local variables
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                var (paramType, paramName) = parameters[i];
+                var param = LLVM.GetParam(llvmFunction, (uint)i);
+                
+                // Allocate space for parameter and store the parameter value
+                var paramAlloca = LLVM.BuildAlloca(_llvmBuilder, GetLlvmType(paramType), paramName);
+                LLVM.BuildStore(_llvmBuilder, param, paramAlloca);
+                
+                var paramValue = new GlyphScriptValue(paramAlloca, paramType);
+                _currentScope.DeclareVariable(paramName, paramValue);
+            }
+
+            // Visit function body
+            Visit(context.block());
+
+            // If function is void and no explicit return, add void return
+            if (returnType == GlyphScriptType.Void)
+            {
+                var currentBlock = LLVM.GetInsertBlock(_llvmBuilder);
+                var terminator = LLVM.GetBasicBlockTerminator(currentBlock);
+                if (terminator.Pointer == IntPtr.Zero)
+                {
+                    LLVM.BuildRetVoid(_llvmBuilder);
+                }
+            }
+        }
+        finally
+        {
+            ExitScope();
+            ExitFunction();
+        }
+
+        return functionInfo;
+    }
+
+    public override object? VisitFunctionCall(GlyphScriptParser.FunctionCallContext context)
+    {
+        var functionName = context.ID().GetText();
+        
+        if (!_currentScope.TryGetFunction(functionName, out var functionInfo))
+            throw new InvalidOperationException($"Function '{functionName}' is not defined.");
+
+        // Evaluate arguments
+        var arguments = new List<GlyphScriptValue>();
+        if (context.argumentList() != null)
+        {
+            foreach (var argExpr in context.argumentList().expression())
+            {
+                var argValue = Visit(argExpr) as GlyphScriptValue ??
+                    throw new InvalidOperationException("Failed to evaluate function argument");
+                arguments.Add(argValue);
+            }
+        }
+
+        // Validate argument count
+        if (arguments.Count != functionInfo.Parameters.Length)
+            throw new InvalidOperationException(
+                $"Function '{functionName}' expects {functionInfo.Parameters.Length} arguments but got {arguments.Count}");
+
+        // Validate argument types
+        for (int i = 0; i < arguments.Count; i++)
+        {
+            var expectedType = functionInfo.Parameters[i].Type;
+            var actualType = arguments[i].Type;
+            
+            if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(expectedType, actualType))
+                throw new InvalidOperationException(
+                    $"Function '{functionName}' parameter {i + 1} expects {expectedType} but got {actualType}");
+        }
+
+        // Call function
+        var argValues = arguments.Select(arg => arg.Value).ToArray();
+        
+        if (functionInfo.ReturnType == GlyphScriptType.Void)
+        {
+            // For void functions, don't assign a name to the call
+            LLVM.BuildCall(_llvmBuilder, functionInfo.LlvmFunction, argValues, "");
+            return null;
+        }
+        else
+        {
+            // For non-void functions, assign a name to the call result
+            var result = LLVM.BuildCall(_llvmBuilder, functionInfo.LlvmFunction, argValues, "call");
+            return new GlyphScriptValue(result, functionInfo.ReturnType);
+        }
+    }
+
+    public override object? VisitFunctionCallExp(GlyphScriptParser.FunctionCallExpContext context)
+    {
+        return Visit(context.functionCall());
+    }
+
+    public override object? VisitReturnStatement(GlyphScriptParser.ReturnStatementContext context)
+    {
+        if (_currentFunction == null)
+            throw new InvalidOperationException("Return statement can only be used inside a function");
+
+        if (context.expression() != null)
+        {
+            // Return with value
+            var returnValue = Visit(context.expression()) as GlyphScriptValue ??
+                throw new InvalidOperationException("Failed to evaluate return expression");
+
+            if (_currentFunction.ReturnType == GlyphScriptType.Void)
+                throw new InvalidOperationException($"Cannot return a value from void function '{_currentFunction.Name}'");
+
+            if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(_currentFunction.ReturnType, returnValue.Type))
+                throw new InvalidOperationException(
+                    $"Function '{_currentFunction.Name}' expects return type {_currentFunction.ReturnType} but got {returnValue.Type}");
+
+            LLVM.BuildRet(_llvmBuilder, returnValue.Value);
+        }
+        else
+        {
+            // Return without value (void)
+            if (_currentFunction.ReturnType != GlyphScriptType.Void)
+                throw new InvalidOperationException($"Function '{_currentFunction.Name}' expects return type {_currentFunction.ReturnType} but got void");
+
+            LLVM.BuildRetVoid(_llvmBuilder);
+        }
 
         return null;
     }
