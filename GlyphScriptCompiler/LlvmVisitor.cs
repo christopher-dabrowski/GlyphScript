@@ -720,17 +720,36 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         // The 'then' block creates its own scope via the Visit(block) call
         LLVM.PositionBuilderAtEnd(_llvmBuilder, thenBlock);
         Visit(context.block(0));
-        LLVM.BuildBr(_llvmBuilder, mergeBlock);
+        var thenTerminated = LLVM.GetBasicBlockTerminator(thenBlock).Pointer != IntPtr.Zero;
+        if (!thenTerminated)
+        {
+            LLVM.BuildBr(_llvmBuilder, mergeBlock);
+        }
 
+        var elseTerminated = false;
         if (elseBlock != null)
         {
             // The 'else' block creates its own scope via the Visit(block) call
             LLVM.PositionBuilderAtEnd(_llvmBuilder, elseBlock.Value);
             Visit(context.block(1));
-            LLVM.BuildBr(_llvmBuilder, mergeBlock);
+            elseTerminated = LLVM.GetBasicBlockTerminator(elseBlock.Value).Pointer != IntPtr.Zero;
+            if (!elseTerminated)
+            {
+                LLVM.BuildBr(_llvmBuilder, mergeBlock);
+            }
         }
 
-        LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+        // Only delete merge block if both then and else blocks are terminated AND there's an else block
+        if (elseBlock != null && thenTerminated && elseTerminated)
+        {
+            // If both branches terminate (e.g., both have return statements), remove the unused merge block
+            LLVM.DeleteBasicBlock(mergeBlock);
+        }
+        else
+        {
+            // Position at merge block for further instructions
+            LLVM.PositionBuilderAtEnd(_llvmBuilder, mergeBlock);
+        }
 
         return null;
     }
