@@ -36,7 +36,8 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             new DoubleOperations(llvmModule, _llvmBuilder),
             new StringOperations(llvmModule, _llvmBuilder),
             new BoolOperations(llvmModule, _llvmBuilder),
-            new ArrayOperations(llvmModule, _llvmBuilder)
+            new ArrayOperations(llvmModule, _llvmBuilder),
+            new StructOperations(llvmModule, _llvmBuilder)
         ];
 
         foreach (var provider in initialOperationProviders)
@@ -439,12 +440,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     public override object? VisitAssignment(GlyphScriptParser.AssignmentContext context)
     {
-        // Handle array element assignment
+        // Handle field assignment: ID '.' ID '=' expression
+        if (context.ID().Length == 2)
+            return FieldAssignmentOperation(context);
+
+        // Handle array element assignment: ID '[' expression ']' '=' expression  
         if (context.expression().Length > 1)
             return ArrayAssignmentOperation(context);
 
-        // Normal variable assignment
-        var id = context.ID().GetText();
+        // Normal variable assignment: ID '=' expression
+        var id = context.ID(0).GetText();
         var expressionValue = Visit(context.expression(0)) as GlyphScriptValue ??
             throw new InvalidOperationException("Failed to create expression");
 
@@ -467,7 +472,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     private object? ArrayAssignmentOperation(GlyphScriptParser.AssignmentContext context)
     {
-        var id = context.ID().GetText();
+        var id = context.ID(0).GetText();
         var indexValue = Visit(context.expression(0)) as GlyphScriptValue ??
                          throw new InvalidOperationException("Failed to resolve index expression");
         var rhsValue = Visit(context.expression(1)) as GlyphScriptValue ??
@@ -507,6 +512,53 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             throw new OperationNotAvailableException(context, operationSignature);
 
         return arrayAssignmentOperation(context, [arrayValue, indexValue, rhsValue]);
+    }
+
+    private object? FieldAssignmentOperation(GlyphScriptParser.AssignmentContext context)
+    {
+        var structId = context.ID(0).GetText();
+        var fieldName = context.ID(1).GetText();
+        var rhsValue = Visit(context.expression(0)) as GlyphScriptValue ??
+                       throw new InvalidOperationException("Failed to create expression value");
+
+        if (!_currentScope.TryGetVariable(structId, out var structVariable))
+            throw new UndefinedVariableUsageException(context) { VariableName = structId };
+
+        if (structVariable.Type != GlyphScriptType.Struct || structVariable.StructInfo == null)
+            throw new InvalidSyntaxException(context, $"Variable '{structId}' is not a structure");
+
+        // Find the field in the structure
+        var fieldIndex = -1;
+        GlyphScriptType fieldType = GlyphScriptType.Void;
+        
+        for (int i = 0; i < structVariable.StructInfo.Fields.Length; i++)
+        {
+            if (structVariable.StructInfo.Fields[i].FieldName == fieldName)
+            {
+                fieldIndex = i;
+                fieldType = structVariable.StructInfo.Fields[i].Type;
+                break;
+            }
+        }
+
+        if (fieldIndex == -1)
+            throw new InvalidSyntaxException(context, $"Field '{fieldName}' does not exist in structure '{structVariable.StructInfo.Name}'");
+
+        if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(fieldType, rhsValue.Type))
+        {
+            throw new AssignmentOfInvalidTypeException(context)
+            {
+                VariableName = $"{structId}.{fieldName}",
+                VariableGlyphScriptType = fieldType,
+                ValueGlyphScriptType = rhsValue.Type
+            };
+        }
+
+        // Get pointer to the field using GEP (GetElementPtr)
+        var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, structVariable.Value, (uint)fieldIndex, $"{structId}_{fieldName}_ptr");
+        LLVM.BuildStore(_llvmBuilder, rhsValue.Value, fieldPtr);
+
+        return rhsValue;
     }
 
     public override object? VisitPrint(GlyphScriptParser.PrintContext context)
@@ -710,6 +762,13 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         {
             return variable with { Value = LLVM.BuildLoad(_llvmBuilder, variable.Value, id) };
         }
+        
+        if (variable.Type == GlyphScriptType.Struct && variable.StructInfo != null)
+        {
+            // For structures, return the variable with its allocation pointer (don't load)
+            // This is needed for field access operations which use GEP
+            return variable;
+        }
 
         return new GlyphScriptValue(
             LLVM.BuildLoad(_llvmBuilder, variable.Value, id),
@@ -858,7 +917,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return new ArrayTypeInfo(elementType);
     }
 
-    private static GlyphScriptType GetTypeFromContext(GlyphScriptParser.TypeContext context)
+    private GlyphScriptType GetTypeFromContext(GlyphScriptParser.TypeContext context)
     {
         if (context.INT() != null) return GlyphScriptType.Int;
         if (context.LONG() != null) return GlyphScriptType.Long;
@@ -869,6 +928,16 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.VOID_TYPE() != null) return GlyphScriptType.Void;
         if (context.AUTO() != null) return GlyphScriptType.Auto;
         if (context.arrayOfType() != null) return GlyphScriptType.Array;
+        if (context.ID() != null) 
+        {
+            var structName = context.ID().GetText();
+            // Validate that the ID refers to a defined struct type
+            if (!_currentScope.TryGetStructType(structName, out _, out _))
+            {
+                throw new InvalidSyntaxException(context, $"Undefined struct type '{structName}'");
+            }
+            return GlyphScriptType.Struct;
+        }
         throw new InvalidOperationException("Invalid type");
     }
 
@@ -884,9 +953,24 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             GlyphScriptType.Boolean => LLVM.Int1Type(),
             GlyphScriptType.Void => LLVM.VoidType(),
             GlyphScriptType.Array when arrayInfo != null => LLVM.PointerType(LLVM.Int8Type(), 0),
+            GlyphScriptType.Struct => throw new InvalidOperationException("Struct type requires specific structure information. Use the overload with StructTypeInfo."),
             GlyphScriptType.Auto => throw new InvalidOperationException("Auto type should have been resolved to a concrete type before reaching LLVM type mapping"),
             _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
+    }
+
+    private LLVMTypeRef GetLlvmType(GlyphScriptType glyphScriptType, StructTypeInfo structInfo)
+    {
+        if (glyphScriptType != GlyphScriptType.Struct)
+            throw new InvalidOperationException("This overload is only for struct types");
+
+        // Check if we already have the LLVM type for this struct
+        if (_currentScope.TryGetStructType(structInfo.Name, out _, out var existingLlvmType))
+            return existingLlvmType;
+
+        // Create LLVM struct type
+        var fieldTypes = structInfo.Fields.Select(f => GetLlvmType(f.Type)).ToArray();
+        return LLVM.StructType(fieldTypes, false);
     }
 
     private void SetupGlobalFunctions(LLVMModuleRef module)
@@ -1159,5 +1243,104 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         }
 
         return null;
+    }
+
+    public override object? VisitStructDeclaration(GlyphScriptParser.StructDeclarationContext context)
+    {
+        var structName = context.ID().GetText();
+        var fields = new List<(GlyphScriptType Type, string FieldName)>();
+
+        // Parse all fields
+        foreach (var fieldContext in context.structField())
+        {
+            var fieldType = GetTypeFromContext(fieldContext.type());
+            var fieldName = fieldContext.ID().GetText();
+            fields.Add((fieldType, fieldName));
+        }
+
+        // Create structure type info
+        var structInfo = new StructTypeInfo(structName, fields.ToArray());
+
+        // Create LLVM struct type
+        var fieldTypes = fields.Select(f => GetLlvmType(f.Type)).ToArray();
+        var llvmStructType = LLVM.StructType(fieldTypes, false);
+
+        // For now, we'll store the struct type info in the scope
+        // In a full implementation, we'd have a type registry
+        _currentScope.DeclareStructType(structName, structInfo, llvmStructType);
+
+        return structInfo;
+    }
+
+    public override object? VisitStructInstantiation(GlyphScriptParser.StructInstantiationContext context)
+    {
+        var structTypeName = context.ID(0).GetText(); // First ID is the struct type name
+        var variableName = context.ID(1).GetText();   // Second ID is the variable name
+        
+        // Get the structure type from scope
+        if (!_currentScope.TryGetStructType(structTypeName, out var structInfo, out var llvmStructType))
+            throw new InvalidOperationException($"Structure type '{structTypeName}' is not defined");
+
+        // Create an instance of the structure
+        var structAlloca = LLVM.BuildAlloca(_llvmBuilder, llvmStructType, variableName);
+
+        // Initialize with default values
+        for (int i = 0; i < structInfo.Fields.Length; i++)
+        {
+            var field = structInfo.Fields[i];
+            var operationSignature = new OperationSignature(OperationKind.DefaultValue, [field.Type]);
+            var createDefaultValueOperation = _availableOperations.GetValueOrDefault(operationSignature);
+            
+            if (createDefaultValueOperation != null)
+            {
+                var defaultValue = createDefaultValueOperation(context, []) as GlyphScriptValue;
+                if (defaultValue != null)
+                {
+                    var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, structAlloca, (uint)i, $"{variableName}_{field.FieldName}_init_ptr");
+                    LLVM.BuildStore(_llvmBuilder, defaultValue.Value, fieldPtr);
+                }
+            }
+        }
+
+        var structValue = new GlyphScriptValue(structAlloca, GlyphScriptType.Struct, null, structInfo);
+        _currentScope.DeclareVariable(variableName, structValue);
+        
+        return structValue;
+    }
+
+    public override object? VisitFieldAccessExp(GlyphScriptParser.FieldAccessExpContext context)
+    {
+        var structExpression = Visit(context.expression()) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to resolve structure expression");
+
+        if (structExpression.Type != GlyphScriptType.Struct || structExpression.StructInfo == null)
+            throw new InvalidSyntaxException(context, "Field access is only valid on structure types");
+
+        var fieldName = context.ID().GetText();
+
+        // Find the field in the structure
+        var fieldIndex = -1;
+        GlyphScriptType fieldType = GlyphScriptType.Void;
+        
+        for (int i = 0; i < structExpression.StructInfo.Fields.Length; i++)
+        {
+            if (structExpression.StructInfo.Fields[i].FieldName == fieldName)
+            {
+                fieldIndex = i;
+                fieldType = structExpression.StructInfo.Fields[i].Type;
+                break;
+            }
+        }
+
+        if (fieldIndex == -1)
+            throw new InvalidSyntaxException(context, $"Field '{fieldName}' does not exist in structure '{structExpression.StructInfo.Name}'");
+
+        // Get pointer to the field using GEP (GetElementPtr)
+        var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, structExpression.Value, (uint)fieldIndex, $"{structExpression.StructInfo.Name}_{fieldName}_ptr");
+        
+        // Load the field value
+        var fieldValue = LLVM.BuildLoad(_llvmBuilder, fieldPtr, $"{structExpression.StructInfo.Name}_{fieldName}");
+
+        return new GlyphScriptValue(fieldValue, fieldType);
     }
 }

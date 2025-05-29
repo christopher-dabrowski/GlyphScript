@@ -10,5 +10,6 @@ public enum GlyphScriptType
     Boolean,
     Array,
     Void,
-    Auto
+    Auto,
+    Struct
 }

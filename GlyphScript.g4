@@ -18,6 +18,8 @@ statement
     | functionDeclaration
     | functionCall
     | returnStatement
+    | structDeclaration
+    | structInstantiation
     ;
 
 expression
@@ -28,6 +30,7 @@ expression
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
     | expression XOR_SYMBOL expression                                # xorExp
     | expression '[' expression ']'                                   # arrayAccessExp
+    | expression '.' ID                                               # fieldAccessExp
     | functionCall                                                    # functionCallExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
@@ -83,6 +86,7 @@ read
 assignment
     : ID '=' expression
     | ID '[' expression ']' '=' expression
+    | ID '.' ID '=' expression
     ;
 
 declaration
@@ -119,6 +123,7 @@ type
     | VOID_TYPE
     | AUTO
     | arrayOfType
+    | ID
     ;
 
 arrayOfType
@@ -131,6 +136,18 @@ arrayLiteral
 
 expressionList
     : expression (',' expression)*
+    ;
+
+structDeclaration
+    : STRUCT ID BEGIN NEWLINE (structField NEWLINE)* END
+    ;
+
+structField
+    : type ID
+    ;
+
+structInstantiation
+    : STRUCT ID ID
     ;
 
 COMMENT
@@ -287,6 +304,10 @@ FUNCTION
 
 RETURN
     : LEFTWARDS_ARROW_EMOJI
+    ;
+
+STRUCT
+    : BUILDING_CONSTRUCTION_EMOJI
     ;
 
 ID
@@ -460,4 +481,9 @@ fragment VOID_EMOJI
 fragment CAR_EMOJI
     : '🚗'
     | ':car:'
+    ;
+
+fragment BUILDING_CONSTRUCTION_EMOJI
+    : '🏗️'
+    | ':building_construction:'
     ;

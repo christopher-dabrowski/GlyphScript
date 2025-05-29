@@ -6,6 +6,7 @@ public class VariableScope
 {
     private readonly Dictionary<string, GlyphScriptValue> _variables = [];
     private readonly Dictionary<string, FunctionInfo> _functions = [];
+    private readonly Dictionary<string, (StructTypeInfo StructInfo, LLVMTypeRef LlvmType)> _structTypes = [];
     private readonly VariableScope? _parent;
 
     public VariableScope(VariableScope? parent = null)
@@ -69,5 +70,33 @@ public class VariableScope
     public bool HasLocalFunction(string name)
     {
         return _functions.ContainsKey(name);
+    }
+
+    public void DeclareStructType(string name, StructTypeInfo structInfo, LLVMTypeRef llvmType)
+    {
+        if (!_structTypes.TryAdd(name, (structInfo, llvmType)))
+            throw new InvalidOperationException($"Structure type '{name}' is already defined in the current scope.");
+    }
+
+    public bool TryGetStructType(string name, [MaybeNullWhen(false)] out StructTypeInfo structInfo, out LLVMTypeRef llvmType)
+    {
+        if (_structTypes.TryGetValue(name, out var typeInfo))
+        {
+            structInfo = typeInfo.StructInfo;
+            llvmType = typeInfo.LlvmType;
+            return true;
+        }
+
+        if (_parent != null)
+            return _parent.TryGetStructType(name, out structInfo, out llvmType);
+
+        structInfo = null;
+        llvmType = default;
+        return false;
+    }
+
+    public bool HasLocalStructType(string name)
+    {
+        return _structTypes.ContainsKey(name);
     }
 }

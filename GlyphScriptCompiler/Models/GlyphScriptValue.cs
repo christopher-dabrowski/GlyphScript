@@ -4,5 +4,6 @@ public record GlyphScriptValue
 (
     LLVMValueRef Value,
     GlyphScriptType Type,
-    ArrayTypeInfo? ArrayInfo = null
+    ArrayTypeInfo? ArrayInfo = null,
+    StructTypeInfo? StructInfo = null
 );

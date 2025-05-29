@@ -45,6 +45,13 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitStatement([NotNull] GlyphScriptParser.StatementContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>fieldAccessExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitFieldAccessExp([NotNull] GlyphScriptParser.FieldAccessExpContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>functionCallExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
@@ -255,5 +262,23 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitExpressionList([NotNull] GlyphScriptParser.ExpressionListContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.structDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitStructDeclaration([NotNull] GlyphScriptParser.StructDeclarationContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.structField"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitStructField([NotNull] GlyphScriptParser.StructFieldContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.structInstantiation"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitStructInstantiation([NotNull] GlyphScriptParser.StructInstantiationContext context);
 }
 } // namespace GlyphScriptCompiler.Antlr
