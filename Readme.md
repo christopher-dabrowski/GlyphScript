@@ -42,7 +42,7 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 
 - [ ] obsługa struktur
 - [ ] obsługa klas
-- [ ] dynamiczne typowanie
+- [x] dynamiczne typowanie - [AutoTypeTests](GlyphScriptCompiler.IntegrationTests/AutoTypeTests.cs)
 - [ ] funkcje-generatory
 
 ## Decyzje Architektoniczne
