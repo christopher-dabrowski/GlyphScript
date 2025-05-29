@@ -129,6 +129,13 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitParenthesisExp([NotNull] GlyphScriptParser.ParenthesisExpContext context);
 	/// <summary>
+	/// Visit a parse tree produced by the <c>methodCallExp</c>
+	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMethodCallExp([NotNull] GlyphScriptParser.MethodCallExpContext context);
+	/// <summary>
 	/// Visit a parse tree produced by the <c>arrayAccessExp</c>
 	/// labeled alternative in <see cref="GlyphScriptParser.expression"/>.
 	/// </summary>
@@ -160,6 +167,12 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitFunctionDeclaration([NotNull] GlyphScriptParser.FunctionDeclarationContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.methodCall"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitMethodCall([NotNull] GlyphScriptParser.MethodCallContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="GlyphScriptParser.functionCall"/>.
 	/// </summary>
@@ -280,5 +293,29 @@ public interface IGlyphScriptVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitStructInstantiation([NotNull] GlyphScriptParser.StructInstantiationContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.classDeclaration"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClassDeclaration([NotNull] GlyphScriptParser.ClassDeclarationContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.classField"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClassField([NotNull] GlyphScriptParser.ClassFieldContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.classMethod"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClassMethod([NotNull] GlyphScriptParser.ClassMethodContext context);
+	/// <summary>
+	/// Visit a parse tree produced by <see cref="GlyphScriptParser.classInstantiation"/>.
+	/// </summary>
+	/// <param name="context">The parse tree.</param>
+	/// <return>The visitor result.</return>
+	Result VisitClassInstantiation([NotNull] GlyphScriptParser.ClassInstantiationContext context);
 }
 } // namespace GlyphScriptCompiler.Antlr

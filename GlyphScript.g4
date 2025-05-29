@@ -20,10 +20,14 @@ statement
     | returnStatement
     | structDeclaration
     | structInstantiation
+    | classDeclaration
+    | classInstantiation
+    | methodCall
     ;
 
 expression
     : '(' expression ')'                                              # parenthesisExp
+    | methodCall                                                      # methodCallExp
     | expression '.' ID                                               # fieldAccessExp
     | NOT_SYMBOL expression                                           # notExpr
     | <assoc = right> expression POWER_SYMBOL expression              # powerExp
@@ -49,6 +53,10 @@ whileStatement
 
 functionDeclaration
     : FUNCTION type ID '(' parameterList? ')' block
+    ;
+
+methodCall
+    : ID '.' ID '(' argumentList? ')'
     ;
 
 functionCall
@@ -156,6 +164,22 @@ COMMENT
 
 MULTILINE_COMMENT
     : '/*' .*? '*/' -> skip
+    ;
+
+classDeclaration
+    : CLASS ID BEGIN NEWLINE (classField NEWLINE | classMethod NEWLINE)* END
+    ;
+
+classField
+    : type ID
+    ;
+
+classMethod
+    : FUNCTION type ID '(' parameterList? ')' block
+    ;
+
+classInstantiation
+    : CLASS ID ID
     ;
 
 LONG
@@ -308,6 +332,10 @@ RETURN
 
 STRUCT
     : BUILDING_CONSTRUCTION_EMOJI
+    ;
+
+CLASS
+    : SCHOOL_BACKPACK_EMOJI
     ;
 
 ID
@@ -486,4 +514,9 @@ fragment CAR_EMOJI
 fragment BUILDING_CONSTRUCTION_EMOJI
     : '🏗️'
     | ':building_construction:'
+    ;
+
+fragment SCHOOL_BACKPACK_EMOJI
+    : '🎒'
+    | ':school_satchel:'
     ;

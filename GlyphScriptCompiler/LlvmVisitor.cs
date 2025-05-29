@@ -104,14 +104,19 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         var statements = context.statement() ?? [];
         _logger.LogDebug("Found {StatementCount} statements in program", statements.Length);
 
-        // First pass: declare all function signatures to allow forward references
-        _logger.LogDebug("Starting first pass - function signatures");
+        // First pass: declare all function signatures and class declarations to allow forward references
+        _logger.LogDebug("Starting first pass - function signatures and class declarations");
         foreach (var statement in statements)
         {
             if (statement.functionDeclaration() != null)
             {
                 _logger.LogDebug("Processing function signature: {FunctionName}", statement.functionDeclaration().ID().GetText());
                 VisitFunctionSignature(statement.functionDeclaration());
+            }
+            else if (statement.classDeclaration() != null)
+            {
+                _logger.LogDebug("Processing class declaration: {ClassName}", statement.classDeclaration().ID().GetText());
+                Visit(statement.classDeclaration());
             }
         }
 
@@ -224,14 +229,19 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             }
         }
 
-        // Third pass: process function bodies (now all globals are declared)
-        _logger.LogDebug("Starting third pass - function bodies");
+        // Third pass: process function bodies and class method bodies (now all globals are declared)
+        _logger.LogDebug("Starting third pass - function bodies and class method bodies");
         foreach (var statement in statements)
         {
             if (statement.functionDeclaration() != null)
             {
                 _logger.LogDebug("Processing function body: {FunctionName}", statement.functionDeclaration().ID().GetText());
                 VisitFunctionBody(statement.functionDeclaration());
+            }
+            else if (statement.classDeclaration() != null)
+            {
+                _logger.LogDebug("Processing class method bodies: {ClassName}", statement.classDeclaration().ID().GetText());
+                VisitClassMethodBodies(statement.classDeclaration());
             }
         }
 
@@ -243,7 +253,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         _logger.LogDebug("Starting fourth pass - processing all statements");
         foreach (var statement in statements)
         {
-            if (statement.functionDeclaration() == null)
+            if (statement.functionDeclaration() == null && statement.classDeclaration() == null)
             {
                 _logger.LogDebug("Processing statement in fourth pass");
                 var result = Visit(statement);
@@ -444,7 +454,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.ID().Length == 2)
             return FieldAssignmentOperation(context);
 
-        // Handle array element assignment: ID '[' expression ']' '=' expression  
+        // Handle array element assignment: ID '[' expression ']' '=' expression
         if (context.expression().Length > 1)
             return ArrayAssignmentOperation(context);
 
@@ -454,7 +464,41 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             throw new InvalidOperationException("Failed to create expression");
 
         if (!_currentScope.TryGetVariable(id, out var variable))
+        {
+            // Check if we're in a class method and the variable is actually a field
+            if (_currentFunction != null && _currentScope.TryGetVariable("this", out var thisVariable) && 
+                thisVariable.Type == GlyphScriptType.Class && thisVariable.ClassInfo != null)
+            {
+                // Check if the identifier matches any field in the current class
+                var fieldIndex = Array.FindIndex(thisVariable.ClassInfo.Fields, field => field.FieldName == id);
+                if (fieldIndex >= 0)
+                {
+                    // This is a field assignment through implicit 'this'
+                    var fieldInfo = thisVariable.ClassInfo.Fields[fieldIndex];
+                    
+                    // Load the actual class pointer from the 'this' variable (which stores a pointer to pointer)
+                    var classPtr = LLVM.BuildLoad(_llvmBuilder, thisVariable.Value, "this_loaded");
+                    var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, classPtr, (uint)fieldIndex, $"{id}_ptr");
+                    
+                    // Check type compatibility
+                    if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(fieldInfo.Type, expressionValue.Type))
+                    {
+                        throw new AssignmentOfInvalidTypeException(context)
+                        {
+                            VariableName = id,
+                            VariableGlyphScriptType = fieldInfo.Type,
+                            ValueGlyphScriptType = expressionValue.Type
+                        };
+                    }
+                    
+                    // Store the value
+                    LLVM.BuildStore(_llvmBuilder, expressionValue.Value, fieldPtr);
+                    return expressionValue;
+                }
+            }
+            
             throw new UndefinedVariableUsageException(context) { VariableName = id };
+        }
 
         if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(variable.Type, expressionValue.Type))
         {
@@ -516,46 +560,67 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
     private object? FieldAssignmentOperation(GlyphScriptParser.AssignmentContext context)
     {
-        var structId = context.ID(0).GetText();
+        var instanceId = context.ID(0).GetText();
         var fieldName = context.ID(1).GetText();
         var rhsValue = Visit(context.expression(0)) as GlyphScriptValue ??
                        throw new InvalidOperationException("Failed to create expression value");
 
-        if (!_currentScope.TryGetVariable(structId, out var structVariable))
-            throw new UndefinedVariableUsageException(context) { VariableName = structId };
+        if (!_currentScope.TryGetVariable(instanceId, out var instanceVariable))
+            throw new UndefinedVariableUsageException(context) { VariableName = instanceId };
 
-        if (structVariable.Type != GlyphScriptType.Struct || structVariable.StructInfo == null)
-            throw new InvalidSyntaxException(context, $"Variable '{structId}' is not a structure");
-
-        // Find the field in the structure
+        // Support both struct and class field assignments
         var fieldIndex = -1;
         GlyphScriptType fieldType = GlyphScriptType.Void;
-        
-        for (int i = 0; i < structVariable.StructInfo.Fields.Length; i++)
+        string typeName;
+
+        if (instanceVariable.Type == GlyphScriptType.Struct && instanceVariable.StructInfo != null)
         {
-            if (structVariable.StructInfo.Fields[i].FieldName == fieldName)
+            // Handle struct field assignment
+            for (int i = 0; i < instanceVariable.StructInfo.Fields.Length; i++)
             {
-                fieldIndex = i;
-                fieldType = structVariable.StructInfo.Fields[i].Type;
-                break;
+                if (instanceVariable.StructInfo.Fields[i].FieldName == fieldName)
+                {
+                    fieldIndex = i;
+                    fieldType = instanceVariable.StructInfo.Fields[i].Type;
+                    break;
+                }
             }
+            typeName = instanceVariable.StructInfo.Name;
+        }
+        else if (instanceVariable.Type == GlyphScriptType.Class && instanceVariable.ClassInfo != null)
+        {
+            // Handle class field assignment
+            for (int i = 0; i < instanceVariable.ClassInfo.Fields.Length; i++)
+            {
+                if (instanceVariable.ClassInfo.Fields[i].FieldName == fieldName)
+                {
+                    fieldIndex = i;
+                    fieldType = instanceVariable.ClassInfo.Fields[i].Type;
+                    break;
+                }
+            }
+            typeName = instanceVariable.ClassInfo.Name;
+        }
+        else
+        {
+            throw new InvalidSyntaxException(context, $"Variable '{instanceId}' is not a structure or class");
         }
 
         if (fieldIndex == -1)
-            throw new InvalidSyntaxException(context, $"Field '{fieldName}' does not exist in structure '{structVariable.StructInfo.Name}'");
+            throw new InvalidSyntaxException(context, $"Field '{fieldName}' does not exist in {(instanceVariable.Type == GlyphScriptType.Struct ? "structure" : "class")} '{typeName}'");
 
         if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(fieldType, rhsValue.Type))
         {
             throw new AssignmentOfInvalidTypeException(context)
             {
-                VariableName = $"{structId}.{fieldName}",
+                VariableName = $"{instanceId}.{fieldName}",
                 VariableGlyphScriptType = fieldType,
                 ValueGlyphScriptType = rhsValue.Type
             };
         }
 
         // Get pointer to the field using GEP (GetElementPtr)
-        var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, structVariable.Value, (uint)fieldIndex, $"{structId}_{fieldName}_ptr");
+        var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, instanceVariable.Value, (uint)fieldIndex, $"{instanceId}_{fieldName}_ptr");
         LLVM.BuildStore(_llvmBuilder, rhsValue.Value, fieldPtr);
 
         return rhsValue;
@@ -756,17 +821,66 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
     {
         var id = context.ID().GetText();
         if (!_currentScope.TryGetVariable(id, out var variable))
+        {
+            // Check if we're in a class method and the identifier might be a field access
+            if (_currentFunction != null && _currentScope.TryGetVariable("this", out var thisVariable) && 
+                thisVariable.Type == GlyphScriptType.Class && thisVariable.ClassInfo != null)
+            {
+                // Check if the identifier matches any field in the current class
+                var fieldIndex = Array.FindIndex(thisVariable.ClassInfo.Fields, field => field.FieldName == id);
+                if (fieldIndex >= 0)
+                {
+                    // Generate field access: this.fieldName
+                    var fieldInfo = thisVariable.ClassInfo.Fields[fieldIndex];
+                    
+                    // Load the actual class pointer from the 'this' variable (which stores a pointer to pointer)
+                    var classPtr = LLVM.BuildLoad(_llvmBuilder, thisVariable.Value, "this_loaded");
+                    var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, classPtr, (uint)fieldIndex, $"{id}_ptr");
+                    
+                    if (fieldInfo.Type == GlyphScriptType.Array)
+                    {
+                        // For arrays, return the pointer without loading
+                        return new GlyphScriptValue(fieldPtr, fieldInfo.Type) { ArrayInfo = null }; // TODO: Set proper ArrayInfo
+                    }
+                    
+                    if (fieldInfo.Type == GlyphScriptType.Struct)
+                    {
+                        // For structs, return the pointer without loading
+                        return new GlyphScriptValue(fieldPtr, fieldInfo.Type) { StructInfo = null }; // TODO: Set proper StructInfo
+                    }
+                    
+                    if (fieldInfo.Type == GlyphScriptType.Class)
+                    {
+                        // For classes, return the pointer without loading
+                        return new GlyphScriptValue(fieldPtr, fieldInfo.Type) { ClassInfo = null }; // TODO: Set proper ClassInfo
+                    }
+                    
+                    // For primitive types, load the value
+                    return new GlyphScriptValue(
+                        LLVM.BuildLoad(_llvmBuilder, fieldPtr, id),
+                        fieldInfo.Type);
+                }
+            }
+            
             throw new InvalidOperationException($"Variable '{id}' is not defined.");
+        }
 
         if (variable.Type == GlyphScriptType.Array && variable.ArrayInfo != null)
         {
             return variable with { Value = LLVM.BuildLoad(_llvmBuilder, variable.Value, id) };
         }
-        
+
         if (variable.Type == GlyphScriptType.Struct && variable.StructInfo != null)
         {
             // For structures, return the variable with its allocation pointer (don't load)
             // This is needed for field access operations which use GEP
+            return variable;
+        }
+
+        if (variable.Type == GlyphScriptType.Class && variable.ClassInfo != null)
+        {
+            // For classes, return the variable with its allocation pointer (don't load)
+            // This is needed for field access and method call operations which use GEP
             return variable;
         }
 
@@ -928,15 +1042,20 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         if (context.VOID_TYPE() != null) return GlyphScriptType.Void;
         if (context.AUTO() != null) return GlyphScriptType.Auto;
         if (context.arrayOfType() != null) return GlyphScriptType.Array;
-        if (context.ID() != null) 
+        if (context.ID() != null)
         {
-            var structName = context.ID().GetText();
-            // Validate that the ID refers to a defined struct type
-            if (!_currentScope.TryGetStructType(structName, out _, out _))
+            var typeName = context.ID().GetText();
+            // Check if it's a struct type
+            if (_currentScope.TryGetStructType(typeName, out _, out _))
             {
-                throw new InvalidSyntaxException(context, $"Undefined struct type '{structName}'");
+                return GlyphScriptType.Struct;
             }
-            return GlyphScriptType.Struct;
+            // Check if it's a class type
+            if (_currentScope.TryGetClassType(typeName, out _, out _))
+            {
+                return GlyphScriptType.Class;
+            }
+            throw new InvalidSyntaxException(context, $"Undefined type '{typeName}'");
         }
         throw new InvalidOperationException("Invalid type");
     }
@@ -954,6 +1073,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             GlyphScriptType.Void => LLVM.VoidType(),
             GlyphScriptType.Array when arrayInfo != null => LLVM.PointerType(LLVM.Int8Type(), 0),
             GlyphScriptType.Struct => throw new InvalidOperationException("Struct type requires specific structure information. Use the overload with StructTypeInfo."),
+            GlyphScriptType.Class => throw new InvalidOperationException("Class type requires specific class information. Use the overload with ClassTypeInfo."),
             GlyphScriptType.Auto => throw new InvalidOperationException("Auto type should have been resolved to a concrete type before reaching LLVM type mapping"),
             _ => throw new InvalidOperationException($"Unsupported type: {glyphScriptType}")
         };
@@ -970,6 +1090,20 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         // Create LLVM struct type
         var fieldTypes = structInfo.Fields.Select(f => GetLlvmType(f.Type)).ToArray();
+        return LLVM.StructType(fieldTypes, false);
+    }
+
+    private LLVMTypeRef GetLlvmType(GlyphScriptType glyphScriptType, ClassTypeInfo classInfo)
+    {
+        if (glyphScriptType != GlyphScriptType.Class)
+            throw new InvalidOperationException("This overload is only for class types");
+
+        // Check if we already have the LLVM type for this class
+        if (_currentScope.TryGetClassType(classInfo.Name, out _, out var existingLlvmType))
+            return existingLlvmType;
+
+        // Create LLVM struct type for class data (fields only)
+        var fieldTypes = classInfo.Fields.Select(f => GetLlvmType(f.Type)).ToArray();
         return LLVM.StructType(fieldTypes, false);
     }
 
@@ -1272,11 +1406,97 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
         return structInfo;
     }
 
+    public override object? VisitClassDeclaration(GlyphScriptParser.ClassDeclarationContext context)
+    {
+        var className = context.ID().GetText();
+        var fields = new List<(GlyphScriptType Type, string FieldName)>();
+        var methods = new List<ClassMethodInfo>();
+
+        // Parse all fields and methods
+        foreach (var fieldContext in context.classField())
+        {
+            var fieldType = GetTypeFromContext(fieldContext.type());
+            var fieldName = fieldContext.ID().GetText();
+            fields.Add((fieldType, fieldName));
+        }
+
+        foreach (var methodContext in context.classMethod())
+        {
+            var returnType = GetTypeFromContext(methodContext.type());
+            var methodName = methodContext.ID().GetText();
+
+            // Parse parameters
+            var parameters = new List<(GlyphScriptType Type, string Name)>();
+            if (methodContext.parameterList() != null)
+            {
+                foreach (var param in methodContext.parameterList().parameter())
+                {
+                    var paramType = GetTypeFromContext(param.type());
+                    var paramName = param.ID().GetText();
+                    parameters.Add((paramType, paramName));
+                }
+            }
+
+            // Create method signature - add class instance as first parameter
+            var methodParameters = new List<(GlyphScriptType Type, string Name)>
+            {
+                (GlyphScriptType.Class, "this")
+            };
+            methodParameters.AddRange(parameters);
+
+            // Create LLVM function type - handle class types specially
+            var paramTypes = new List<LLVMTypeRef>();
+            
+            // First parameter is always the class instance (this pointer)
+            // Use a generic pointer type for now - will be resolved when class is complete
+            paramTypes.Add(LLVM.PointerType(LLVM.Int8Type(), 0));
+            
+            // Handle remaining parameters
+            for (int i = 1; i < methodParameters.Count; i++)
+            {
+                var paramType = methodParameters[i].Type;
+                if (paramType == GlyphScriptType.Class)
+                {
+                    // For class parameters, use pointer type as placeholder
+                    paramTypes.Add(LLVM.PointerType(LLVM.Int8Type(), 0));
+                }
+                else
+                {
+                    paramTypes.Add(GetLlvmType(paramType));
+                }
+            }
+            
+            var llvmReturnType = returnType == GlyphScriptType.Class 
+                ? LLVM.PointerType(LLVM.Int8Type(), 0) 
+                : GetLlvmType(returnType);
+            var functionType = LLVM.FunctionType(llvmReturnType, paramTypes.ToArray(), false);
+
+            // Create LLVM function with mangled name
+            var mangledName = $"{className}_{methodName}";
+            var llvmFunction = LLVM.AddFunction(LlvmModule, mangledName, functionType);
+            LLVM.SetFunctionCallConv(llvmFunction, (uint)LLVMCallConv.LLVMCCallConv);
+
+            var methodInfo = new ClassMethodInfo(methodName, returnType, methodParameters.ToArray(), llvmFunction);
+            methods.Add(methodInfo);
+        }
+
+        // Create class type info
+        var classInfo = new ClassTypeInfo(className, fields.ToArray(), methods.ToArray());
+
+        // Create LLVM struct type for class data (fields only)
+        var fieldTypes = fields.Select(f => GetLlvmType(f.Type)).ToArray();
+        var llvmClassType = LLVM.StructType(fieldTypes, false);
+
+        _currentScope.DeclareClassType(className, classInfo, llvmClassType);
+
+        return classInfo;
+    }
+
     public override object? VisitStructInstantiation(GlyphScriptParser.StructInstantiationContext context)
     {
         var structTypeName = context.ID(0).GetText(); // First ID is the struct type name
         var variableName = context.ID(1).GetText();   // Second ID is the variable name
-        
+
         // Get the structure type from scope
         if (!_currentScope.TryGetStructType(structTypeName, out var structInfo, out var llvmStructType))
             throw new InvalidOperationException($"Structure type '{structTypeName}' is not defined");
@@ -1290,7 +1510,7 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
             var field = structInfo.Fields[i];
             var operationSignature = new OperationSignature(OperationKind.DefaultValue, [field.Type]);
             var createDefaultValueOperation = _availableOperations.GetValueOrDefault(operationSignature);
-            
+
             if (createDefaultValueOperation != null)
             {
                 var defaultValue = createDefaultValueOperation(context, []) as GlyphScriptValue;
@@ -1304,43 +1524,356 @@ public sealed class LlvmVisitor : GlyphScriptBaseVisitor<object?>, IDisposable
 
         var structValue = new GlyphScriptValue(structAlloca, GlyphScriptType.Struct, null, structInfo);
         _currentScope.DeclareVariable(variableName, structValue);
-        
+
         return structValue;
+    }
+
+    public override object? VisitClassInstantiation(GlyphScriptParser.ClassInstantiationContext context)
+    {
+        var classTypeName = context.ID(0).GetText(); // First ID is the class type name
+        var variableName = context.ID(1).GetText();   // Second ID is the variable name
+
+        // Get the class type from scope
+        if (!_currentScope.TryGetClassType(classTypeName, out var classInfo, out var llvmClassType))
+            throw new InvalidOperationException($"Class type '{classTypeName}' is not defined");
+
+        // Create an instance of the class
+        var classAlloca = LLVM.BuildAlloca(_llvmBuilder, llvmClassType, variableName);
+
+        // Initialize fields with default values
+        for (int i = 0; i < classInfo.Fields.Length; i++)
+        {
+            var field = classInfo.Fields[i];
+            var operationSignature = new OperationSignature(OperationKind.DefaultValue, [field.Type]);
+            var createDefaultValueOperation = _availableOperations.GetValueOrDefault(operationSignature);
+
+            if (createDefaultValueOperation != null)
+            {
+                var defaultValue = createDefaultValueOperation(context, []) as GlyphScriptValue;
+                if (defaultValue != null)
+                {
+                    var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, classAlloca, (uint)i, $"{variableName}_{field.FieldName}_init_ptr");
+                    LLVM.BuildStore(_llvmBuilder, defaultValue.Value, fieldPtr);
+                }
+            }
+        }
+
+        var classValue = new GlyphScriptValue(classAlloca, GlyphScriptType.Class, null, null, classInfo);
+        _currentScope.DeclareVariable(variableName, classValue);
+
+        return classValue;
     }
 
     public override object? VisitFieldAccessExp(GlyphScriptParser.FieldAccessExpContext context)
     {
-        var structExpression = Visit(context.expression()) as GlyphScriptValue ??
-            throw new InvalidOperationException("Failed to resolve structure expression");
-
-        if (structExpression.Type != GlyphScriptType.Struct || structExpression.StructInfo == null)
-            throw new InvalidSyntaxException(context, "Field access is only valid on structure types");
+        var expression = Visit(context.expression()) as GlyphScriptValue ??
+            throw new InvalidOperationException("Failed to resolve expression");
 
         var fieldName = context.ID().GetText();
 
-        // Find the field in the structure
-        var fieldIndex = -1;
-        GlyphScriptType fieldType = GlyphScriptType.Void;
-        
-        for (int i = 0; i < structExpression.StructInfo.Fields.Length; i++)
+        // Handle struct field access
+        if (expression.Type == GlyphScriptType.Struct && expression.StructInfo != null)
         {
-            if (structExpression.StructInfo.Fields[i].FieldName == fieldName)
+            // Find the field in the structure
+            var fieldIndex = -1;
+            GlyphScriptType fieldType = GlyphScriptType.Void;
+
+            for (int i = 0; i < expression.StructInfo.Fields.Length; i++)
             {
-                fieldIndex = i;
-                fieldType = structExpression.StructInfo.Fields[i].Type;
+                if (expression.StructInfo.Fields[i].FieldName == fieldName)
+                {
+                    fieldIndex = i;
+                    fieldType = expression.StructInfo.Fields[i].Type;
+                    break;
+                }
+            }
+
+            if (fieldIndex == -1)
+                throw new InvalidSyntaxException(context, $"Field '{fieldName}' does not exist in structure '{expression.StructInfo.Name}'");
+
+            // Get pointer to the field using GEP (GetElementPtr)
+            var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, expression.Value, (uint)fieldIndex, $"{expression.StructInfo.Name}_{fieldName}_ptr");
+
+            // Load the field value
+            var fieldValue = LLVM.BuildLoad(_llvmBuilder, fieldPtr, $"{expression.StructInfo.Name}_{fieldName}");
+
+            return new GlyphScriptValue(fieldValue, fieldType);
+        }
+        // Handle class field access
+        else if (expression.Type == GlyphScriptType.Class && expression.ClassInfo != null)
+        {
+            // Find the field in the class
+            var fieldIndex = -1;
+            GlyphScriptType fieldType = GlyphScriptType.Void;
+
+            for (int i = 0; i < expression.ClassInfo.Fields.Length; i++)
+            {
+                if (expression.ClassInfo.Fields[i].FieldName == fieldName)
+                {
+                    fieldIndex = i;
+                    fieldType = expression.ClassInfo.Fields[i].Type;
+                    break;
+                }
+            }
+
+            if (fieldIndex == -1)
+                throw new InvalidSyntaxException(context, $"Field '{fieldName}' does not exist in class '{expression.ClassInfo.Name}'");
+
+            // Get pointer to the field using GEP (GetElementPtr)
+            var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, expression.Value, (uint)fieldIndex, $"{expression.ClassInfo.Name}_{fieldName}_ptr");
+
+            // Load the field value
+            var fieldValue = LLVM.BuildLoad(_llvmBuilder, fieldPtr, $"{expression.ClassInfo.Name}_{fieldName}");
+
+            return new GlyphScriptValue(fieldValue, fieldType);
+        }
+        else
+        {
+            throw new InvalidSyntaxException(context, "Field access is only valid on structure and class types");
+        }
+    }
+
+    public override object? VisitMethodCallExp(GlyphScriptParser.MethodCallExpContext context)
+    {
+        // Get the instance expression (the object on which the method is called)
+        var className = context.methodCall().ID(0).GetText();
+
+        if (!_currentScope.TryGetVariable(className, out var instanceVariable))
+            throw new InvalidSyntaxException(context, $"Instance variable '{className}' is not defined");
+        var instanceExpression = instanceVariable;
+        if (instanceExpression.Type != GlyphScriptType.Class || instanceExpression.ClassInfo == null)
+            throw new InvalidSyntaxException(context, "Method calls are only valid on class instances");
+
+        var methodName = context.methodCall().ID(1).GetText();
+
+        // Find the method in the class
+        ClassMethodInfo? methodInfo = null;
+        foreach (var method in instanceExpression.ClassInfo.Methods)
+        {
+            if (method.Name == methodName)
+            {
+                methodInfo = method;
                 break;
             }
         }
 
-        if (fieldIndex == -1)
-            throw new InvalidSyntaxException(context, $"Field '{fieldName}' does not exist in structure '{structExpression.StructInfo.Name}'");
+        if (methodInfo == null)
+            throw new InvalidSyntaxException(context, $"Method '{methodName}' does not exist in class '{instanceExpression.ClassInfo.Name}'");
 
-        // Get pointer to the field using GEP (GetElementPtr)
-        var fieldPtr = LLVM.BuildStructGEP(_llvmBuilder, structExpression.Value, (uint)fieldIndex, $"{structExpression.StructInfo.Name}_{fieldName}_ptr");
+        // Evaluate arguments
+        var arguments = new List<GlyphScriptValue>();
+        if (context.methodCall().argumentList() != null)
+        {
+            foreach (var argExpr in context.methodCall().argumentList().expression())
+            {
+                var argValue = Visit(argExpr) as GlyphScriptValue ??
+                    throw new InvalidOperationException("Failed to evaluate method argument");
+                arguments.Add(argValue);
+            }
+        }
+
+        // Validate argument count (excluding implicit 'this' parameter)
+        var expectedArgCount = methodInfo.Parameters.Length - 1; // Subtract 1 for implicit 'this'
+        if (arguments.Count != expectedArgCount)
+            throw new InvalidOperationException(
+                $"Method '{methodName}' expects {expectedArgCount} arguments but got {arguments.Count}");
+
+        // Validate argument types (skip first parameter which is 'this')
+        for (int i = 0; i < arguments.Count; i++)
+        {
+            var expectedType = methodInfo.Parameters[i + 1].Type; // Skip 'this' parameter
+            var actualType = arguments[i].Type;
+
+            if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(expectedType, actualType))
+                throw new InvalidOperationException(
+                    $"Method '{methodName}' parameter {i + 1} expects {expectedType} but got {actualType}");
+        }
+
+        // Build method call with instance as first argument
+        // Cast the instance pointer to match the function signature (generic pointer type)
+        var genericPointerType = LLVM.PointerType(LLVM.Int8Type(), 0);
+        var castedInstancePtr = LLVM.BuildPointerCast(_llvmBuilder, instanceExpression.Value, genericPointerType, "instance_cast");
         
-        // Load the field value
-        var fieldValue = LLVM.BuildLoad(_llvmBuilder, fieldPtr, $"{structExpression.StructInfo.Name}_{fieldName}");
+        var callArguments = new List<LLVMValueRef> { castedInstancePtr };
+        callArguments.AddRange(arguments.Select(arg => arg.Value));
 
-        return new GlyphScriptValue(fieldValue, fieldType);
+        if (methodInfo.ReturnType == GlyphScriptType.Void)
+        {
+            LLVM.BuildCall(_llvmBuilder, methodInfo.LlvmFunction, callArguments.ToArray(), "");
+            return null;
+        }
+        else
+        {
+            var result = LLVM.BuildCall(_llvmBuilder, methodInfo.LlvmFunction, callArguments.ToArray(), "method_call");
+            return new GlyphScriptValue(result, methodInfo.ReturnType);
+        }
+    }
+
+    public override object? VisitMethodCall(GlyphScriptParser.MethodCallContext context)
+    {
+        // Get the instance expression (the object on which the method is called)
+        var className = context.ID(0).GetText();
+
+        if (!_currentScope.TryGetVariable(className, out var instanceVariable))
+            throw new InvalidSyntaxException(context, $"Instance variable '{className}' is not defined");
+        var instanceExpression = instanceVariable;
+        if (instanceExpression.Type != GlyphScriptType.Class || instanceExpression.ClassInfo == null)
+            throw new InvalidSyntaxException(context, "Method calls are only valid on class instances");
+
+        var methodName = context.ID(1).GetText();
+
+        // Find the method in the class
+        ClassMethodInfo? methodInfo = null;
+        foreach (var method in instanceExpression.ClassInfo.Methods)
+        {
+            if (method.Name == methodName)
+            {
+                methodInfo = method;
+                break;
+            }
+        }
+
+        if (methodInfo == null)
+            throw new InvalidSyntaxException(context, $"Method '{methodName}' does not exist in class '{instanceExpression.ClassInfo.Name}'");
+
+        // Evaluate arguments
+        var arguments = new List<GlyphScriptValue>();
+        if (context.argumentList() != null)
+        {
+            foreach (var argExpr in context.argumentList().expression())
+            {
+                var argValue = Visit(argExpr) as GlyphScriptValue ??
+                    throw new InvalidOperationException("Failed to evaluate method argument");
+                arguments.Add(argValue);
+            }
+        }
+
+        // Validate argument count (excluding implicit 'this' parameter)
+        var expectedArgCount = methodInfo.Parameters.Length - 1; // Subtract 1 for implicit 'this'
+        if (arguments.Count != expectedArgCount)
+            throw new InvalidOperationException(
+                $"Method '{methodName}' expects {expectedArgCount} arguments but got {arguments.Count}");
+
+        // Validate argument types (skip first parameter which is 'this')
+        for (int i = 0; i < arguments.Count; i++)
+        {
+            var expectedType = methodInfo.Parameters[i + 1].Type; // Skip 'this' parameter
+            var actualType = arguments[i].Type;
+
+            if (!_expressionResultTypeEngine.AreTypesCompatibleForAssignment(expectedType, actualType))
+                throw new InvalidOperationException(
+                    $"Method '{methodName}' parameter {i + 1} expects {expectedType} but got {actualType}");
+        }
+
+        // Build method call with instance as first argument
+        // Cast the instance pointer to match the function signature (generic pointer type)
+        var genericPointerType = LLVM.PointerType(LLVM.Int8Type(), 0);
+        var castedInstancePtr = LLVM.BuildPointerCast(_llvmBuilder, instanceExpression.Value, genericPointerType, "instance_cast");
+        
+        var callArguments = new List<LLVMValueRef> { castedInstancePtr };
+        callArguments.AddRange(arguments.Select(arg => arg.Value));
+
+        // For statements, we call the method but don't need to return the result
+        LLVM.BuildCall(_llvmBuilder, methodInfo.LlvmFunction, callArguments.ToArray(), "");
+        
+        return null;
+    }
+
+    private object? VisitClassMethodBodies(GlyphScriptParser.ClassDeclarationContext context)
+    {
+        var className = context.ID().GetText();
+
+        // Get the class info from scope
+        if (!_currentScope.TryGetClassType(className, out var classInfo, out var llvmClassType))
+            throw new InvalidOperationException($"Class '{className}' not found during method body processing.");
+
+        // Process each method body
+        foreach (var methodContext in context.classMethod())
+        {
+            var methodName = methodContext.ID().GetText();
+            
+            // Find the method info in the class
+            ClassMethodInfo? methodInfo = null;
+            foreach (var method in classInfo.Methods)
+            {
+                if (method.Name == methodName)
+                {
+                    methodInfo = method;
+                    break;
+                }
+            }
+
+            if (methodInfo == null)
+                throw new InvalidOperationException($"Method '{methodName}' not found in class '{className}'.");
+
+            _logger.LogDebug("Processing method body: {ClassName}.{MethodName}", className, methodName);
+
+            // Save the current builder position (main function)
+            var previousBlock = LLVM.GetInsertBlock(_llvmBuilder);
+
+            // Create entry block for method
+            var entryBlock = LLVM.AppendBasicBlock(methodInfo.LlvmFunction, "entry");
+            LLVM.PositionBuilderAtEnd(_llvmBuilder, entryBlock);
+
+            // Enter function context and new scope for parameters
+            EnterFunction(new FunctionInfo(methodInfo.Name, methodInfo.ReturnType, methodInfo.Parameters, methodInfo.LlvmFunction));
+            EnterScope();
+
+            try
+            {
+                // Declare parameters as local variables (including 'this' pointer)
+                for (int i = 0; i < methodInfo.Parameters.Length; i++)
+                {
+                    var (paramType, paramName) = methodInfo.Parameters[i];
+                    var param = LLVM.GetParam(methodInfo.LlvmFunction, (uint)i);
+
+                    // For 'this' parameter, create a special variable with class info
+                    if (i == 0 && paramName == "this")
+                    {
+                        // Allocate space for the 'this' pointer and store it
+                        var thisAlloca = LLVM.BuildAlloca(_llvmBuilder, LLVM.PointerType(llvmClassType, 0), "this");
+                        // Cast the generic pointer back to the specific class type
+                        var castedThis = LLVM.BuildPointerCast(_llvmBuilder, param, LLVM.PointerType(llvmClassType, 0), "this_cast");
+                        LLVM.BuildStore(_llvmBuilder, castedThis, thisAlloca);
+
+                        var thisValue = new GlyphScriptValue(thisAlloca, GlyphScriptType.Class, null, null, classInfo);
+                        _currentScope.DeclareVariable("this", thisValue);
+                    }
+                    else
+                    {
+                        // Regular parameters
+                        var paramAlloca = LLVM.BuildAlloca(_llvmBuilder, GetLlvmType(paramType), paramName);
+                        LLVM.BuildStore(_llvmBuilder, param, paramAlloca);
+
+                        var paramValue = new GlyphScriptValue(paramAlloca, paramType);
+                        _currentScope.DeclareVariable(paramName, paramValue);
+                    }
+                }
+
+                // Visit method body
+                Visit(methodContext.block());
+
+                // If method is void and no explicit return, add void return
+                if (methodInfo.ReturnType == GlyphScriptType.Void)
+                {
+                    var currentBlock = LLVM.GetInsertBlock(_llvmBuilder);
+                    var terminator = LLVM.GetBasicBlockTerminator(currentBlock);
+                    if (terminator.Pointer == IntPtr.Zero)
+                    {
+                        LLVM.BuildRetVoid(_llvmBuilder);
+                    }
+                }
+            }
+            finally
+            {
+                ExitScope();
+                ExitFunction();
+
+                // Restore the builder position back to the main function
+                LLVM.PositionBuilderAtEnd(_llvmBuilder, previousBlock);
+            }
+        }
+
+        return classInfo;
     }
 }

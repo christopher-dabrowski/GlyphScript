@@ -11,5 +11,6 @@ public enum GlyphScriptType
     Array,
     Void,
     Auto,
-    Struct
+    Struct,
+    Class
 }
