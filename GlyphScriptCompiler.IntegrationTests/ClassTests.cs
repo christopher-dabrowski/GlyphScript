@@ -22,16 +22,6 @@ public class ClassTests : IDisposable
     }
 
     [Fact]
-    public async Task ClassFieldAssignment_ShouldCompileSuccessfully()
-    {
-        // This test verifies that class field assignment works
-        var output = await RunProgram("classFieldAssignment.gs");
-
-        // If we get here without exceptions, the compilation was successful
-        Assert.NotNull(output);
-    }
-
-    [Fact]
     public async Task ClassFieldAssignment_ShouldExecuteCorrectly()
     {
         // This test verifies that class field assignment and access works correctly
@@ -40,16 +30,6 @@ public class ClassTests : IDisposable
         // Should print the values that were assigned
         Assert.Contains("Tesla", output);
         Assert.Contains("2023", output);
-    }
-
-    [Fact]
-    public async Task ClassBasicExample_ShouldCompileSuccessfully()
-    {
-        // This test verifies that basic class functionality works
-        var output = await RunProgram("classBasicExample.gs");
-
-        // If we get here without exceptions, the compilation was successful
-        Assert.NotNull(output);
     }
 
     [Fact]
