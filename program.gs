@@ -2,6 +2,7 @@
 🎒 Person 📖
     🔢 age
     🔤 name
+
     ⚙️ 🔤 getName() 📖
         ↩️ name
     📕

@@ -167,7 +167,7 @@ MULTILINE_COMMENT
     ;
 
 classDeclaration
-    : CLASS ID BEGIN NEWLINE (classField NEWLINE | classMethod NEWLINE)* END
+    : CLASS ID BEGIN NEWLINE (classField NEWLINE | classMethod NEWLINE | NEWLINE)* END
     ;
 
 classField
