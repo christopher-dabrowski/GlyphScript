@@ -40,7 +40,7 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 
 ### Rozszerzenia
 
-- [ ] obsługa struktur
+- [x] obsługa struktur - [StructureTests](GlyphScriptCompiler.IntegrationTests/StructureTests.cs),
 - [ ] obsługa klas
 - [x] dynamiczne typowanie - [AutoTypeTests](GlyphScriptCompiler.IntegrationTests/AutoTypeTests.cs)
 - [ ] funkcje-generatory
