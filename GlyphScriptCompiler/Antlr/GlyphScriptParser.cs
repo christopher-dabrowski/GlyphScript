@@ -65,7 +65,7 @@ public partial class GlyphScriptParser : Parser {
 	};
 
 	private static readonly string[] _LiteralNames = {
-		null, "'('", "')'", "'['", "']'", "'.'", "','", "'='"
+		null, "'('", "')'", "'.'", "'['", "']'", "','", "'='"
 	};
 	private static readonly string[] _SymbolicNames = {
 		null, null, null, null, null, null, null, null, "COMMENT", "MULTILINE_COMMENT", 
@@ -605,7 +605,7 @@ public partial class GlyphScriptParser : Parser {
 				State = 85;
 				Match(NOT_SYMBOL);
 				State = 86;
-				expression(13);
+				expression(12);
 				}
 				break;
 			case 3:
@@ -654,11 +654,11 @@ public partial class GlyphScriptParser : Parser {
 						_localctx = new PowerExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 92;
-						if (!(Precpred(Context, 12))) throw new FailedPredicateException(this, "Precpred(Context, 12)");
+						if (!(Precpred(Context, 11))) throw new FailedPredicateException(this, "Precpred(Context, 11)");
 						State = 93;
 						Match(POWER_SYMBOL);
 						State = 94;
-						expression(12);
+						expression(11);
 						}
 						break;
 					case 2:
@@ -666,7 +666,7 @@ public partial class GlyphScriptParser : Parser {
 						_localctx = new MulDivExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 95;
-						if (!(Precpred(Context, 11))) throw new FailedPredicateException(this, "Precpred(Context, 11)");
+						if (!(Precpred(Context, 10))) throw new FailedPredicateException(this, "Precpred(Context, 10)");
 						State = 96;
 						_la = TokenStream.LA(1);
 						if ( !(_la==MULTIPLICATION_SYMBOL || _la==DIVISION_SYMBOL) ) {
@@ -677,7 +677,7 @@ public partial class GlyphScriptParser : Parser {
 						    Consume();
 						}
 						State = 97;
-						expression(12);
+						expression(11);
 						}
 						break;
 					case 3:
@@ -685,7 +685,7 @@ public partial class GlyphScriptParser : Parser {
 						_localctx = new AddSubExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 98;
-						if (!(Precpred(Context, 10))) throw new FailedPredicateException(this, "Precpred(Context, 10)");
+						if (!(Precpred(Context, 9))) throw new FailedPredicateException(this, "Precpred(Context, 9)");
 						State = 99;
 						_la = TokenStream.LA(1);
 						if ( !(_la==ADDITION_SYMBOL || _la==SUBTRACTION_SYMBOL) ) {
@@ -696,7 +696,7 @@ public partial class GlyphScriptParser : Parser {
 						    Consume();
 						}
 						State = 100;
-						expression(11);
+						expression(10);
 						}
 						break;
 					case 4:
@@ -704,11 +704,11 @@ public partial class GlyphScriptParser : Parser {
 						_localctx = new XorExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 101;
-						if (!(Precpred(Context, 9))) throw new FailedPredicateException(this, "Precpred(Context, 9)");
+						if (!(Precpred(Context, 8))) throw new FailedPredicateException(this, "Precpred(Context, 8)");
 						State = 102;
 						Match(XOR_SYMBOL);
 						State = 103;
-						expression(10);
+						expression(9);
 						}
 						break;
 					case 5:
@@ -749,28 +749,28 @@ public partial class GlyphScriptParser : Parser {
 						break;
 					case 8:
 						{
-						_localctx = new ArrayAccessExpContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new FieldAccessExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
 						State = 113;
-						if (!(Precpred(Context, 8))) throw new FailedPredicateException(this, "Precpred(Context, 8)");
+						if (!(Precpred(Context, 13))) throw new FailedPredicateException(this, "Precpred(Context, 13)");
 						State = 114;
 						Match(T__2);
 						State = 115;
-						expression(0);
-						State = 116;
-						Match(T__3);
+						Match(ID);
 						}
 						break;
 					case 9:
 						{
-						_localctx = new FieldAccessExpContext(new ExpressionContext(_parentctx, _parentState));
+						_localctx = new ArrayAccessExpContext(new ExpressionContext(_parentctx, _parentState));
 						PushNewRecursionContext(_localctx, _startState, RULE_expression);
-						State = 118;
+						State = 116;
 						if (!(Precpred(Context, 7))) throw new FailedPredicateException(this, "Precpred(Context, 7)");
+						State = 117;
+						Match(T__3);
+						State = 118;
+						expression(0);
 						State = 119;
 						Match(T__4);
-						State = 120;
-						Match(ID);
 						}
 						break;
 					}
@@ -1016,7 +1016,7 @@ public partial class GlyphScriptParser : Parser {
 			State = 153;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 70377600450570L) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 70377600450578L) != 0)) {
 				{
 				State = 152;
 				argumentList();
@@ -1069,7 +1069,7 @@ public partial class GlyphScriptParser : Parser {
 			State = 159;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 70377600450570L) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 70377600450578L) != 0)) {
 				{
 				State = 158;
 				expression(0);
@@ -1449,11 +1449,11 @@ public partial class GlyphScriptParser : Parser {
 				State = 201;
 				Match(ID);
 				State = 202;
-				Match(T__2);
+				Match(T__3);
 				State = 203;
 				expression(0);
 				State = 204;
-				Match(T__3);
+				Match(T__4);
 				State = 205;
 				Match(T__6);
 				State = 206;
@@ -1466,7 +1466,7 @@ public partial class GlyphScriptParser : Parser {
 				State = 208;
 				Match(ID);
 				State = 209;
-				Match(T__4);
+				Match(T__2);
 				State = 210;
 				Match(ID);
 				State = 211;
@@ -1715,7 +1715,7 @@ public partial class GlyphScriptParser : Parser {
 				Match(FALSE_LITERAL);
 				}
 				break;
-			case T__2:
+			case T__3:
 				EnterOuterAlt(_localctx, 8);
 				{
 				State = 234;
@@ -1924,11 +1924,11 @@ public partial class GlyphScriptParser : Parser {
 			EnterOuterAlt(_localctx, 1);
 			{
 			State = 252;
-			Match(T__2);
+			Match(T__3);
 			State = 254;
 			ErrorHandler.Sync(this);
 			_la = TokenStream.LA(1);
-			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 70377600450570L) != 0)) {
+			if ((((_la) & ~0x3f) == 0 && ((1L << _la) & 70377600450578L) != 0)) {
 				{
 				State = 253;
 				expressionList();
@@ -1936,7 +1936,7 @@ public partial class GlyphScriptParser : Parser {
 			}
 
 			State = 256;
-			Match(T__3);
+			Match(T__4);
 			}
 		}
 		catch (RecognitionException re) {
@@ -2179,14 +2179,14 @@ public partial class GlyphScriptParser : Parser {
 	}
 	private bool expression_sempred(ExpressionContext _localctx, int predIndex) {
 		switch (predIndex) {
-		case 0: return Precpred(Context, 12);
-		case 1: return Precpred(Context, 11);
-		case 2: return Precpred(Context, 10);
-		case 3: return Precpred(Context, 9);
+		case 0: return Precpred(Context, 11);
+		case 1: return Precpred(Context, 10);
+		case 2: return Precpred(Context, 9);
+		case 3: return Precpred(Context, 8);
 		case 4: return Precpred(Context, 3);
 		case 5: return Precpred(Context, 2);
 		case 6: return Precpred(Context, 1);
-		case 7: return Precpred(Context, 8);
+		case 7: return Precpred(Context, 13);
 		case 8: return Precpred(Context, 7);
 		}
 		return true;
@@ -2230,17 +2230,17 @@ public partial class GlyphScriptParser : Parser {
 		1,0,0,0,78,70,1,0,0,0,78,71,1,0,0,0,78,72,1,0,0,0,78,73,1,0,0,0,78,74,
 		1,0,0,0,78,75,1,0,0,0,78,76,1,0,0,0,78,77,1,0,0,0,79,3,1,0,0,0,80,81,6,
 		2,-1,0,81,82,5,1,0,0,82,83,3,4,2,0,83,84,5,2,0,0,84,91,1,0,0,0,85,86,5,
-		33,0,0,86,91,3,4,2,13,87,91,3,12,6,0,88,91,3,36,18,0,89,91,5,46,0,0,90,
+		33,0,0,86,91,3,4,2,12,87,91,3,12,6,0,88,91,3,36,18,0,89,91,5,46,0,0,90,
 		80,1,0,0,0,90,85,1,0,0,0,90,87,1,0,0,0,90,88,1,0,0,0,90,89,1,0,0,0,91,
-		123,1,0,0,0,92,93,10,12,0,0,93,94,5,31,0,0,94,122,3,4,2,12,95,96,10,11,
-		0,0,96,97,7,0,0,0,97,122,3,4,2,12,98,99,10,10,0,0,99,100,7,1,0,0,100,122,
-		3,4,2,11,101,102,10,9,0,0,102,103,5,34,0,0,103,122,3,4,2,10,104,105,10,
+		123,1,0,0,0,92,93,10,11,0,0,93,94,5,31,0,0,94,122,3,4,2,11,95,96,10,10,
+		0,0,96,97,7,0,0,0,97,122,3,4,2,11,98,99,10,9,0,0,99,100,7,1,0,0,100,122,
+		3,4,2,10,101,102,10,8,0,0,102,103,5,34,0,0,103,122,3,4,2,9,104,105,10,
 		3,0,0,105,106,5,35,0,0,106,122,3,4,2,4,107,108,10,2,0,0,108,109,5,36,0,
 		0,109,122,3,4,2,3,110,111,10,1,0,0,111,112,5,37,0,0,112,122,3,4,2,2,113,
-		114,10,8,0,0,114,115,5,3,0,0,115,116,3,4,2,0,116,117,5,4,0,0,117,122,1,
-		0,0,0,118,119,10,7,0,0,119,120,5,5,0,0,120,122,5,46,0,0,121,92,1,0,0,0,
+		114,10,13,0,0,114,115,5,3,0,0,115,122,5,46,0,0,116,117,10,7,0,0,117,118,
+		5,4,0,0,118,119,3,4,2,0,119,120,5,5,0,0,120,122,1,0,0,0,121,92,1,0,0,0,
 		121,95,1,0,0,0,121,98,1,0,0,0,121,101,1,0,0,0,121,104,1,0,0,0,121,107,
-		1,0,0,0,121,110,1,0,0,0,121,113,1,0,0,0,121,118,1,0,0,0,122,125,1,0,0,
+		1,0,0,0,121,110,1,0,0,0,121,113,1,0,0,0,121,116,1,0,0,0,122,125,1,0,0,
 		0,123,121,1,0,0,0,123,124,1,0,0,0,124,5,1,0,0,0,125,123,1,0,0,0,126,127,
 		5,40,0,0,127,128,3,4,2,0,128,130,3,22,11,0,129,131,5,47,0,0,130,129,1,
 		0,0,0,130,131,1,0,0,0,131,134,1,0,0,0,132,133,5,41,0,0,133,135,3,22,11,
@@ -2261,8 +2261,8 @@ public partial class GlyphScriptParser : Parser {
 		190,1,0,0,0,189,187,1,0,0,0,190,191,5,39,0,0,191,23,1,0,0,0,192,193,5,
 		19,0,0,193,194,3,4,2,0,194,25,1,0,0,0,195,196,5,20,0,0,196,197,5,46,0,
 		0,197,27,1,0,0,0,198,199,5,46,0,0,199,200,5,7,0,0,200,214,3,4,2,0,201,
-		202,5,46,0,0,202,203,5,3,0,0,203,204,3,4,2,0,204,205,5,4,0,0,205,206,5,
-		7,0,0,206,207,3,4,2,0,207,214,1,0,0,0,208,209,5,46,0,0,209,210,5,5,0,0,
+		202,5,46,0,0,202,203,5,4,0,0,203,204,3,4,2,0,204,205,5,5,0,0,205,206,5,
+		7,0,0,206,207,3,4,2,0,207,214,1,0,0,0,208,209,5,46,0,0,209,210,5,3,0,0,
 		210,211,5,46,0,0,211,212,5,7,0,0,212,214,3,4,2,0,213,198,1,0,0,0,213,201,
 		1,0,0,0,213,208,1,0,0,0,214,29,1,0,0,0,215,218,3,32,16,0,216,218,3,34,
 		17,0,217,215,1,0,0,0,217,216,1,0,0,0,218,31,1,0,0,0,219,220,3,38,19,0,
@@ -2277,8 +2277,8 @@ public partial class GlyphScriptParser : Parser {
 		237,1,0,0,0,247,238,1,0,0,0,247,239,1,0,0,0,247,240,1,0,0,0,247,241,1,
 		0,0,0,247,242,1,0,0,0,247,243,1,0,0,0,247,244,1,0,0,0,247,245,1,0,0,0,
 		247,246,1,0,0,0,248,39,1,0,0,0,249,250,5,15,0,0,250,251,3,38,19,0,251,
-		41,1,0,0,0,252,254,5,3,0,0,253,255,3,44,22,0,254,253,1,0,0,0,254,255,1,
-		0,0,0,255,256,1,0,0,0,256,257,5,4,0,0,257,43,1,0,0,0,258,263,3,4,2,0,259,
+		41,1,0,0,0,252,254,5,4,0,0,253,255,3,44,22,0,254,253,1,0,0,0,254,255,1,
+		0,0,0,255,256,1,0,0,0,256,257,5,5,0,0,257,43,1,0,0,0,258,263,3,4,2,0,259,
 		260,5,6,0,0,260,262,3,4,2,0,261,259,1,0,0,0,262,265,1,0,0,0,263,261,1,
 		0,0,0,263,264,1,0,0,0,264,45,1,0,0,0,265,263,1,0,0,0,266,267,5,45,0,0,
 		267,268,5,46,0,0,268,269,5,38,0,0,269,275,5,47,0,0,270,271,3,48,24,0,271,

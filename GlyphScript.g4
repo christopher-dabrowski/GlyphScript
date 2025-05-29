@@ -24,13 +24,13 @@ statement
 
 expression
     : '(' expression ')'                                              # parenthesisExp
+    | expression '.' ID                                               # fieldAccessExp
     | NOT_SYMBOL expression                                           # notExpr
     | <assoc = right> expression POWER_SYMBOL expression              # powerExp
     | expression (MULTIPLICATION_SYMBOL | DIVISION_SYMBOL) expression # mulDivExp
     | expression (ADDITION_SYMBOL | SUBTRACTION_SYMBOL) expression    # addSubExp
     | expression XOR_SYMBOL expression                                # xorExp
     | expression '[' expression ']'                                   # arrayAccessExp
-    | expression '.' ID                                               # fieldAccessExp
     | functionCall                                                    # functionCallExp
     | immediateValue                                                  # valueExp
     | ID                                                              # idAtomExp
