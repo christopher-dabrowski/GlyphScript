@@ -11,7 +11,8 @@ public sealed class ProgramRunner : IDisposable
     public ProgramRunner(ITestOutputHelper output)
     {
         _output = output;
-        _compiler = new GlyphScriptLlvmCompiler();
+        var logger = NullLogger<GlyphScriptLlvmCompiler>.Instance;
+        _compiler = new GlyphScriptLlvmCompiler(logger);
         _outputPath = Path.Combine(Path.GetTempPath(), $"test_output_{Guid.NewGuid()}.ll");
     }
 

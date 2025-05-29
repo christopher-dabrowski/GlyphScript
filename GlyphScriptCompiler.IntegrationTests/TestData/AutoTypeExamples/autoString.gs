@@ -1,0 +1,2 @@
+🚗 message = "Hello World"
+📢(message)

@@ -117,6 +117,7 @@ type
     | STRING_TYPE
     | BOOLEAN_TYPE
     | VOID_TYPE
+    | AUTO
     | arrayOfType
     ;
 
@@ -146,6 +147,10 @@ LONG
 
 INT
     : INT_SYMBOL
+    ;
+
+AUTO
+    : CAR_EMOJI
     ;
 
 DOUBLE
@@ -450,4 +455,9 @@ fragment VOID_EMOJI
     | ':hole:'
     | '⚫'
     | ':black_circle:'
+    ;
+
+fragment CAR_EMOJI
+    : '🚗'
+    | ':car:'
     ;

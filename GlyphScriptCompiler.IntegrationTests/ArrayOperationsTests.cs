@@ -2,6 +2,7 @@ using GlyphScriptCompiler.IntegrationTests.TestHelpers;
 
 namespace GlyphScriptCompiler.IntegrationTests;
 
+
 public class ArrayOperationsTests : IDisposable
 {
     private const string TestFilesDirectory = "TestData/ArrayOperationsExamples";

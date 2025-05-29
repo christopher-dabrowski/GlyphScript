@@ -1,28 +1,45 @@
 using Antlr4.Runtime.Misc;
 using GlyphScriptCompiler.SyntaxErrors;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GlyphScriptCompiler;
 
 public sealed class GlyphScriptLlvmCompiler
 {
+    private readonly ILogger<GlyphScriptLlvmCompiler> _logger;
+
+    public GlyphScriptLlvmCompiler(ILogger<GlyphScriptLlvmCompiler>? logger = null)
+    {
+        _logger = logger ?? NullLogger<GlyphScriptLlvmCompiler>.Instance;
+    }
+
     public LLVMModuleRef Compile(string codeFilePath)
     {
+        _logger.LogDebug("Opening code file: {CodeFilePath}", codeFilePath);
         var codeFile = OpenCodeFile(codeFilePath);
 
+        _logger.LogDebug("Creating lexer");
         var lexer = new GlyphScriptLexer(codeFile);
         var tokenStream = new CommonTokenStream(lexer);
+        _logger.LogDebug("Creating parser");
         var parser = new GlyphScriptParser(tokenStream)
         {
             ErrorHandler = new BailErrorStrategy()
         };
 
+        _logger.LogDebug("Parsing program");
         var context = ParseProgram(parser);
 
+        _logger.LogDebug("Creating LLVM module");
         var moduleName = Path.GetFileNameWithoutExtension(codeFilePath);
         var module = LLVM.ModuleCreateWithName(moduleName);
 
-        var visitor = new LlvmVisitor(module);
+        _logger.LogDebug("Creating visitor");
+        var visitor = new LlvmVisitor(module, _logger);
+        _logger.LogDebug("Context type: {ContextType}", context.GetType().Name);
+        _logger.LogDebug("Calling visitor.Visit(context)");
         visitor.Visit(context);
+        _logger.LogDebug("Visitor.Visit completed");
 
         return visitor.LlvmModule;
     }

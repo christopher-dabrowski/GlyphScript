@@ -141,6 +141,9 @@ public class ExpressionResultTypeEngine
         {
             var (t, v) when t == v => true,
 
+            // Auto type is compatible with any type - it will be replaced with the actual type
+            (GlyphScriptType.Auto, _) => true,
+
             (GlyphScriptType.Long, GlyphScriptType.Int) => true,
 
             (GlyphScriptType.Double, GlyphScriptType.Float) => true,

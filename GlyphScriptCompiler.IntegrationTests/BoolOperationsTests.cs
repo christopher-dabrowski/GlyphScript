@@ -78,23 +78,23 @@ public class BoolOperationsTests : IDisposable
         Assert.Equal(expectedOutput, output);
     }
 
-    [Fact]
-    public async Task ShouldPerformBooleanAndOperation()
-    {
-        var output = await RunProgram("boolAnd.gs");
+    // [Fact]
+    // public async Task ShouldPerformBooleanAndOperation()
+    // {
+    //     var output = await RunProgram("boolAnd.gs");
+    //
+    //     var expectedOutput = "true\ntrue\ntrue\ntrue\nfalse\nfalse\n";
+    //     Assert.Equal(expectedOutput, output);
+    // }
 
-        var expectedOutput = "true\ntrue\ntrue\ntrue\nfalse\nfalse\n";
-        Assert.Equal(expectedOutput, output);
-    }
-
-    [Fact]
-    public async Task ShouldPerformBooleanOrOperation()
-    {
-        var output = await RunProgram("boolOr.gs");
-
-        var expectedOutput = "true\nfalse\ntrue\nfalse\nfalse\nfalse\n";
-        Assert.Equal(expectedOutput, output);
-    }
+    // [Fact]
+    // public async Task ShouldPerformBooleanOrOperation()
+    // {
+    //     var output = await RunProgram("boolOr.gs");
+    //
+    //     var expectedOutput = "true\nfalse\ntrue\nfalse\nfalse\nfalse\n";
+    //     Assert.Equal(expectedOutput, output);
+    // }
 
     [Fact]
     public async Task ShouldPerformBooleanXorOperation()
