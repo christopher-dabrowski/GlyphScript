@@ -58,7 +58,7 @@ public class IfElseStatementTests : IDisposable
         Assert.Equal(expectedOutput, output);
     }
 
-    [Fact(Skip = "I broke the logic of this test, need to fix it")]
+    [Fact]
     public async Task ShouldHandleNestedIfStatements()
     {
         var output = await RunProgram("nestedIf.gs");
