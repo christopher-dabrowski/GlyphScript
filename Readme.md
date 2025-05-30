@@ -45,6 +45,184 @@ Projekt jest wykonywany w ramach przedmiotu Języki formalne i kompilatory na Po
 - [x] dynamiczne typowanie - [AutoTypeTests](GlyphScriptCompiler.IntegrationTests/AutoTypeTests.cs)
 - [ ] funkcje-generatory
 
+## Architektura Rozwiązania
+
+### Przegląd Architektury
+
+Kompilator GlyphScript został zaprojektowany z wykorzystaniem wzorca Visitor oraz modularnej architektury dla obsługi różnych typów danych. Główne komponenty systemu to:
+
+- **GlyphScriptLlvmCompiler**: Główny punkt wejścia kompilatora
+- **LlvmVisitor**: Implementuje wzorzec Visitor do przechodzenia AST i generacji kodu LLVM
+- **IOperationProvider**: Interfejs dla modularnej obsługi operacji na różnych typach danych
+- **TypeOperations**: Klasy implementujące operacje specyficzne dla typów (IntegerOperations, FloatOperations, etc.)
+- **Models**: Podstawowe struktury danych (GlyphScriptValue, GlyphScriptType, VariableScope, etc.)
+
+### Diagram Klas
+
+```mermaid
+classDiagram
+    class GlyphScriptLlvmCompiler {
+        -ILogger logger
+        +Compile(string codeFilePath) LLVMModuleRef
+        -OpenCodeFile(string filePath) AntlrInputStream
+        -ParseProgram(GlyphScriptParser parser) ProgramContext
+    }
+
+    class LlvmVisitor {
+        +LLVMModuleRef LlvmModule
+        -LLVMBuilderRef llvmBuilder
+        -ExpressionResultTypeEngine expressionResultTypeEngine
+        -VariableScope currentScope
+        -Stack~VariableScope~ scopeStack
+        -Dictionary~OperationSignature,OperationImplementation~ availableOperations
+        -FunctionInfo currentFunction
+        -Stack~FunctionInfo~ functionStack
+
+        +VisitProgram(ProgramContext context) object
+        +VisitFunctionDeclaration(FunctionDeclarationContext context) object
+        +VisitClassDeclaration(ClassDeclarationContext context) object
+        +VisitStructDeclaration(StructDeclarationContext context) object
+        +VisitExpression(ExpressionContext context) object
+        -EnterScope() void
+        -ExitScope() void
+        -RegisterOperations(IOperationProvider provider) void
+    }
+
+    class IOperationProvider {
+        <<interface>>
+        +Operations Dictionary~OperationSignature,OperationImplementation~
+        +Initialize() void
+    }
+
+    class IntegerOperations {
+        -LLVMModuleRef module
+        -LLVMBuilderRef builder
+        +Operations Dictionary~OperationSignature,OperationImplementation~
+        +Initialize() void
+        -CreateAdditionOperation() OperationImplementation
+        -CreateSubtractionOperation() OperationImplementation
+        -CreateMultiplicationOperation() OperationImplementation
+        -CreateDivisionOperation() OperationImplementation
+    }
+
+    class FloatOperations {
+        -LLVMModuleRef module
+        -LLVMBuilderRef builder
+        +Operations Dictionary~OperationSignature,OperationImplementation~
+        +Initialize() void
+    }
+
+    class StringOperations {
+        -LLVMModuleRef module
+        -LLVMBuilderRef builder
+        +Operations Dictionary~OperationSignature,OperationImplementation~
+        +Initialize() void
+    }
+
+    class ArrayOperations {
+        -LLVMModuleRef module
+        -LLVMBuilderRef builder
+        +Operations Dictionary~OperationSignature,OperationImplementation~
+        +Initialize() void
+    }
+
+    class StructOperations {
+        -LLVMModuleRef module
+        -LLVMBuilderRef builder
+        +Operations Dictionary~OperationSignature,OperationImplementation~
+        +Initialize() void
+    }
+
+    class GlyphScriptValue {
+        +LLVMValueRef Value
+        +GlyphScriptType Type
+        +ArrayTypeInfo ArrayInfo
+        +StructTypeInfo StructInfo
+        +ClassTypeInfo ClassInfo
+    }
+
+    class VariableScope {
+        -Dictionary~string,GlyphScriptValue~ variables
+        -Dictionary~string,FunctionInfo~ functions
+        -Dictionary~string,StructTypeInfo~ structTypes
+        -Dictionary~string,ClassTypeInfo~ classTypes
+        +DeclareVariable(string name, GlyphScriptValue value) void
+        +TryGetVariable(string name, out GlyphScriptValue value) bool
+        +DeclareFunction(string name, FunctionInfo info) void
+        +TryGetFunction(string name, out FunctionInfo info) bool
+    }
+
+    GlyphScriptLlvmCompiler --> LlvmVisitor : creates
+    LlvmVisitor --> IOperationProvider : uses
+    LlvmVisitor --> VariableScope : manages
+    LlvmVisitor --> GlyphScriptValue : creates/manipulates
+    IOperationProvider <|.. IntegerOperations : implements
+    IOperationProvider <|.. FloatOperations : implements
+    IOperationProvider <|.. StringOperations : implements
+    IOperationProvider <|.. ArrayOperations : implements
+    IOperationProvider <|.. StructOperations : implements
+```
+
+### Diagram Sekwencji - Proces Kompilacji
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Compiler as GlyphScriptLlvmCompiler
+    participant Visitor as LlvmVisitor
+    participant OpProvider as IOperationProvider
+    participant Scope as VariableScope
+
+    Client->>Compiler: Compile(codeFilePath)
+    Compiler->>Compiler: OpenCodeFile(filePath)
+    Compiler->>Compiler: CreateLexer & Parser
+    Compiler->>Compiler: ParseProgram()
+    Compiler->>Visitor: new LlvmVisitor(module)
+
+    Visitor->>Scope: new VariableScope()
+    Visitor->>OpProvider: Initialize operation providers
+    loop For each operation provider
+        OpProvider->>Visitor: Register operations
+    end
+
+    Compiler->>Visitor: Visit(programContext)
+
+    Note over Visitor: Multi-pass compilation process
+
+    Visitor->>Visitor: First Pass: Function signatures & class declarations
+    loop For each function/class
+        Visitor->>Scope: DeclareFunction/DeclareClass
+    end
+
+    Visitor->>Visitor: Second Pass: Global variables
+    loop For each global declaration
+        Visitor->>OpProvider: Get default value operation
+        OpProvider-->>Visitor: Default value
+        Visitor->>Scope: DeclareVariable
+    end
+
+    Visitor->>Visitor: Third Pass: Function bodies & method bodies
+    loop For each function/method
+        Visitor->>Visitor: EnterScope()
+        Visitor->>Visitor: Process function body
+        Visitor->>Visitor: ExitScope()
+    end
+
+    Visitor->>Visitor: Fourth Pass: All other statements
+    loop For each statement
+        Visitor->>Visitor: VisitStatement
+        alt Expression evaluation
+            Visitor->>OpProvider: Get operation
+            OpProvider-->>Visitor: Operation result
+        else Variable assignment
+            Visitor->>Scope: Update variable
+        end
+    end
+
+    Visitor-->>Compiler: LLVMModuleRef
+    Compiler-->>Client: LLVMModuleRef
+```
+
 ## Decyzje Architektoniczne
 
 Kluczowe decyzje podjęte podczas implementacji.
